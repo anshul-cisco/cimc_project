@@ -667,66 +667,11 @@ def save_to_csv(servers, csv_file="cimc_server_inventory.csv"):
         print(f"Error saving CSV file: {e}")
         return False
 
-def print_cimc_setup_guide():
-    """Print comprehensive CIMC setup guide for troubleshooting."""
-    print("\n" + "=" * 80)
-    print("CISCO CIMC SETUP GUIDE FOR DATA COLLECTION")
-    print("=" * 80)
-    print("PREREQUISITES:")
-    print("  • CIMC firmware version 4.0 or higher recommended")
-    print("  • Network connectivity to CIMC management interface")
-    print("  • Administrator or Read-Only user account")
-    print("")
-    print("STEP 1: VERIFY CIMC NETWORK ACCESS")
-    print("  1. Ping the CIMC IP address: ping <CIMC_IP>")
-    print("  2. Test HTTPS port: telnet <CIMC_IP> 443")
-    print("  3. Access web interface: https://<CIMC_IP>")
-    print("")
-    print("STEP 2: ENABLE REDFISH API SERVICE")
-    print("  1. Login to CIMC web interface with admin credentials")
-    print("  2. Navigate to: Admin → Communication Services")
-    print("  3. Find 'Redfish' in the services list")
-    print("  4. Check the 'Enabled' checkbox for Redfish")
-    print("  5. Click 'Save Changes' button")
-    print("  6. Wait 1-2 minutes for service to initialize")
-    print("  7. Verify service status shows 'Running'")
-    print("")
-    print("STEP 3: VERIFY USER PERMISSIONS")
-    print("  1. Go to: Admin → User Management → Local Users")
-    print("  2. Select your user account")
-    print("  3. Ensure role is 'Administrator' or 'Read-Only'")
-    print("  4. If creating new user, assign appropriate role")
-    print("  5. Save changes and test login")
-    print("")
-    print("STEP 4: VERIFY HTTPS/SSL SETTINGS")
-    print("  1. Go to: Admin → Communication Services → HTTP/HTTPS")
-    print("  2. Ensure HTTPS is enabled on port 443")
-    print("  3. SSL certificate should be present (self-signed is OK)")
-    print("")
-    print("STEP 5: TEST API ACCESS")
-    print("  1. Try accessing: https://<CIMC_IP>/redfish/v1/")
-    print("  2. Should return JSON response (may show cert warning)")
-    print("  3. If blocked, check firewall and network settings")
-    print("")
-    print("TROUBLESHOOTING COMMON ISSUES:")
-    print("  • Service Disabled: Enable Redfish in Communication Services")
-    print("  • Authentication Failed: Check username/password and user role")
-    print("  • Network Unreachable: Verify IP, routing, and firewall rules")
-    print("  • SSL/TLS Errors: Accept self-signed certificates or update CIMC firmware")
-    print("  • Timeout: Check network latency and CIMC performance")
-    print("")
-    print("CISCO DOCUMENTATION:")
-    print("  • CIMC Configuration Guide: cisco.com/c/en/us/support/servers-unified-computing/")
-    print("  • Redfish API Reference: dmtf.org/standards/redfish")
-    print("=" * 80)
+
 
 def main():
     """Main function to collect data and save to CSV."""
     parser = argparse.ArgumentParser(description='CIMC Server Inventory Data Collection Tool')
-    
-    # Add help option to display setup guide
-    parser.add_argument('--setup-help', action='store_true',
-                       help='Display comprehensive CIMC setup guide and exit')
     
     # Create a mutually exclusive group for input method
     input_group = parser.add_mutually_exclusive_group(required=False)
@@ -749,12 +694,7 @@ def main():
     
     args = parser.parse_args()
     
-    # If setup help is requested, print the guide and exit
-    if args.setup_help:
-        print_cimc_setup_guide()
-        sys.exit(0)
-    
-    # Now check if required arguments are provided for actual collection
+    # Check if required arguments are provided for data collection
     if not args.single and not args.csv:
         parser.error("one of the arguments -s/--single -c/--csv is required for data collection")
     

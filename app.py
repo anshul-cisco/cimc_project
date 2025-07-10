@@ -102,6 +102,11 @@ def read_data():
         # Clean up any NaN values
         df = df.fillna('N/A')
         
+        # Clean up whitespace in string columns
+        for col in df.columns:
+            if df[col].dtype == 'object':  # string columns
+                df[col] = df[col].astype(str).str.strip()
+        
         logging.info(f"Successfully read {len(df)} records from {CSV_FILE}")
         return df.to_dict(orient='records')  # Convert DataFrame to list of dictionaries for Jinja2
         
@@ -533,92 +538,94 @@ def parse_nic_details(nic_details):
         for i, part in enumerate(parts):
             part = part.strip()
             if part:
-                # Extract card name (everything before the first colon)
-                if ':' in part:
-                    card_name = part.split(':')[0].strip()
-                    port_details = part.split(':', 1)[1].strip()
+                # Check if this is the new enhanced format or the old format
+                card_name = ""
+                port_details = ""
+                adapter_type = "Network Adapter"
+                slot_info = ""
+                
+                # Pattern for enhanced format: "Adapter Type (Slot X) - Card Name: Port details"
+                enhanced_pattern = r'(.*?)\s*\(Slot\s+([^)]+)\)\s*-\s*(.*?):\s*(.*)'
+                enhanced_match = re.match(enhanced_pattern, part)
+                
+                if enhanced_match:
+                    # Enhanced format
+                    adapter_type = enhanced_match.group(1).strip()
+                    slot_info = enhanced_match.group(2).strip()
+                    card_name = enhanced_match.group(3).strip()
+                    port_details = enhanced_match.group(4).strip()
+                    display_name = f"{adapter_type} (Slot {slot_info}) - {card_name}"
                 else:
-                    card_name = part.strip()
-                    port_details = ""
+                    # Check for old format or simpler format: "Card Name: Port details"
+                    if ':' in part:
+                        card_name_part = part.split(':', 1)[0].strip()
+                        port_details = part.split(':', 1)[1].strip()
+                        
+                        # Check if card_name_part contains adapter type info
+                        if ' - ' in card_name_part:
+                            # Format like "VIC Adapter (Slot 1) - Cisco UCS VIC 1455"
+                            parts_split = card_name_part.split(' - ', 1)
+                            if '(' in parts_split[0] and ')' in parts_split[0]:
+                                adapter_type = parts_split[0].split('(')[0].strip()
+                                slot_match = re.search(r'\(Slot\s+([^)]+)\)', parts_split[0])
+                                if slot_match:
+                                    slot_info = slot_match.group(1)
+                                card_name = parts_split[1].strip()
+                                display_name = f"{adapter_type} (Slot {slot_info}) - {card_name}"
+                            else:
+                                # Simple format like "UCS VIC 1455"
+                                card_name = card_name_part
+                                display_name = card_name
+                        else:
+                            # Simple format like "UCS VIC 1455"
+                            card_name = card_name_part
+                            display_name = card_name
+                    else:
+                        # No colon, treat entire part as card name
+                        card_name = part.strip()
+                        display_name = card_name
+                        port_details = ""
                 
                 # Get card specifications for enhanced naming
                 card_specs = extract_card_specifications(card_name)
                 
-                # Determine category and enhance card name based on card type
+                # Determine category based on adapter type or card name
                 category = 'Network'
                 card_name_upper = card_name.upper()
-                display_name = card_name
-                card_type = 'Unknown'
+                card_type = 'Network'
                 
-                # Enhanced categorization with unique names based on actual card model
-                if 'MLOM' in card_name_upper:
+                # Enhanced categorization
+                if 'MLOM' in adapter_type.upper() or 'MLOM' in card_name_upper:
                     category = 'MLOM'
                     card_type = 'MLOM'
-                    display_name = f"MLOM: {card_name}"
-                        
-                elif 'PCIE' in card_name_upper or 'PCIe' in card_name:
-                    # Further categorize PCIe devices
-                    if 'NETWORK' in card_name_upper or 'ETHERNET' in card_name_upper:
-                        category = 'PCIe Network'
-                        card_type = 'PCIe Network'
-                        display_name = f"PCIe Network: {card_name}"
-                    elif 'STORAGE' in card_name_upper or 'RAID' in card_name_upper or 'NVME' in card_name_upper:
-                        category = 'PCIe Storage'
-                        card_type = 'PCIe Storage'
-                        display_name = f"PCIe Storage: {card_name}"
-                    elif 'GRAPHICS' in card_name_upper or 'GPU' in card_name_upper or 'DISPLAY' in card_name_upper:
-                        category = 'PCIe Graphics'
-                        card_type = 'PCIe Graphics'
-                        display_name = f"PCIe Graphics: {card_name}"
-                    elif 'ACCELERATOR' in card_name_upper or 'COPROCESSOR' in card_name_upper:
-                        category = 'PCIe Accelerator'
-                        card_type = 'PCIe Accelerator'
-                        display_name = f"PCIe Accelerator: {card_name}"
-                    elif 'CONTROLLER' in card_name_upper or 'BRIDGE' in card_name_upper:
-                        category = 'PCIe Controller'
-                        card_type = 'PCIe Controller'
-                        display_name = f"PCIe Controller: {card_name}"
-                    else:
-                        category = 'PCIe'
-                        card_type = 'PCIe'
-                        display_name = f"PCIe: {card_name}"
-                        
-                elif 'VIC' in card_name_upper or 'UCSC-M-V' in card_name_upper:
+                elif 'VIC' in adapter_type.upper() or 'VIC' in card_name_upper:
                     category = 'VIC'
                     card_type = 'VIC'
-                    display_name = f"VIC: {card_name}"
-                    
-                elif 'OCP' in card_name_upper:
+                elif 'Intel' in adapter_type or 'Intel' in card_name:
+                    category = 'Intel Network'
+                    card_type = 'Intel Network'
+                elif 'UCS' in adapter_type.upper() or 'UCS' in card_name_upper:
+                    category = 'UCS Network'
+                    card_type = 'UCS Network'
+                elif 'PCIe' in adapter_type or 'PCIE' in adapter_type.upper():
+                    category = 'PCIe Network'
+                    card_type = 'PCIe Network'
+                elif 'OCP' in card_name_upper or 'OCP' in adapter_type.upper():
                     category = 'OCP'
                     card_type = 'OCP'
-                    display_name = f"OCP: {card_name}"
-                        
                 elif 'NIC' in card_name_upper or 'CISCO' in card_name_upper:
                     category = 'NIC'
                     card_type = 'NIC'
-                    display_name = f"NIC: {card_name}"
-                        
-                elif 'ETHERNET' in card_name_upper or 'ETH' in card_name_upper:
+                elif 'ETHERNET' in card_name_upper:
                     category = 'Ethernet'
                     card_type = 'Ethernet'
-                    display_name = f"Ethernet: {card_name}"
-                    
-                else:
-                    # Check if this might be a PCIe device based on content
-                    if any(keyword in port_details.upper() for keyword in ['FUNCTION', 'DEVICE', 'CONTROLLER', 'BRIDGE']):
-                        category = 'PCIe Device'
-                        card_type = 'PCIe Device'
-                        display_name = f"PCIe Device: {card_name}"
-                    else:
-                        # Default naming for unknown card types
-                        display_name = f"Network Card: {card_name}"
                 
-                # Extract port count and connection info for additional context
+                # Extract port count and connection info
                 port_count = 0
                 connected_ports = 0
                 max_speed = 0
                 
-                if port_details:
+                if port_details and port_details != "No port details available":
                     # Count ports by looking for "Port" mentions
                     port_entries = [p.strip() for p in port_details.split('|') if 'Port' in p]
                     port_count = len(port_entries)
@@ -663,7 +670,9 @@ def parse_nic_details(nic_details):
                     'connected_ports': connected_ports,
                     'card_type': card_type,
                     'specs': card_specs,
-                    'max_speed': max_speed
+                    'max_speed': max_speed,
+                    'slot_info': slot_info,
+                    'adapter_type': adapter_type
                 })
                 
     except Exception as e:
@@ -680,7 +689,9 @@ def parse_nic_details(nic_details):
             'connected_ports': 0,
             'card_type': 'Unknown',
             'specs': {},
-            'max_speed': 0
+            'max_speed': 0,
+            'slot_info': '',
+            'adapter_type': 'Network'
         }]
     
     return cards
@@ -697,10 +708,19 @@ def get_server_details():
             return jsonify({'error': 'Hostname parameter is required'}), 400
         
         servers = read_data()
-        server = next((s for s in servers if s.get('HostName') == hostname), None)
+        # First try to find by HostName (exact match)
+        server = next((s for s in servers if s.get('HostName', '').strip() == hostname), None)
+        
+        # If not found, try to find by Host URL
+        if not server:
+            server = next((s for s in servers if s.get('Host URL', '').strip() == hostname), None)
+        
+        # If still not found and host_url is provided, try to match by host_url
+        if not server and host_url:
+            server = next((s for s in servers if s.get('Host URL', '').strip() == host_url), None)
         
         if not server:
-            logging.warning(f"Server details requested for non-existent server: {hostname}")
+            logging.warning(f"Server details requested for non-existent server. hostname: {hostname}, host_url: {host_url}")
             return jsonify({'error': 'Server not found'}), 404
         
         # Parse NIC details to get all available cards
