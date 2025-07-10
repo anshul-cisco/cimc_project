@@ -207,12 +207,15 @@ def collect_data_for_server(cimc_ip, username, password):
         else:
             memory_str = "N/A"
         
-        # Storage information
+        # Storage information - enhanced with multiple methods
         storage_str = "N/A"
         try:
+            # Method 1: Try Storage endpoint
             storage_endpoint = system_data.get('Storage', {}).get('@odata.id')
+            
             if storage_endpoint:
                 storage_response = session.get(f"https://{cimc_ip}{storage_endpoint}", timeout=30)
+                
                 if storage_response.status_code == 200:
                     storage_data = storage_response.json()
                     total_bytes = 0
@@ -223,11 +226,13 @@ def collect_data_for_server(cimc_ip, username, password):
                         if controller_response.status_code == 200:
                             controller_data = controller_response.json()
                             drives = controller_data.get('Drives', [])
+                            
                             for drive_member in drives:
                                 drive_response = session.get(f"https://{cimc_ip}{drive_member['@odata.id']}", timeout=30)
                                 if drive_response.status_code == 200:
                                     drive_data = drive_response.json()
                                     capacity_bytes = drive_data.get('CapacityBytes', 0)
+                                    
                                     if capacity_bytes:
                                         try:
                                             total_bytes += int(capacity_bytes)
@@ -240,68 +245,248 @@ def collect_data_for_server(cimc_ip, username, password):
                             storage_str = f"{total_bytes / (1024**4):.2f} TB ({drive_count} drives)"
                         else:  # GB
                             storage_str = f"{total_bytes / (1024**3):.2f} GB ({drive_count} drives)"
-        except:
+            
+            # Method 2: Try SimpleStorage endpoint if Storage failed
+            if storage_str == "N/A":
+                simple_storage_endpoint = system_data.get('SimpleStorage', {}).get('@odata.id')
+                
+                if simple_storage_endpoint:
+                    simple_storage_response = session.get(f"https://{cimc_ip}{simple_storage_endpoint}", timeout=30)
+                    
+                    if simple_storage_response.status_code == 200:
+                        simple_storage_data = simple_storage_response.json()
+                        
+                        for storage_member in simple_storage_data.get('Members', []):
+                            storage_response = session.get(f"https://{cimc_ip}{storage_member['@odata.id']}", timeout=30)
+                            if storage_response.status_code == 200:
+                                storage_controller_data = storage_response.json()
+                                devices = storage_controller_data.get('Devices', [])
+                                
+                                total_bytes = 0
+                                drive_count = 0
+                                
+                                for device in devices:
+                                    capacity_bytes = device.get('CapacityBytes', 0)
+                                    if capacity_bytes:
+                                        try:
+                                            total_bytes += int(capacity_bytes)
+                                            drive_count += 1
+                                        except:
+                                            pass
+                                
+                                if total_bytes > 0:
+                                    if total_bytes >= (1024**4):  # TB
+                                        storage_str = f"{total_bytes / (1024**4):.2f} TB ({drive_count} drives)"
+                                    else:  # GB
+                                        storage_str = f"{total_bytes / (1024**3):.2f} GB ({drive_count} drives)"
+                                    break
+            
+            # Method 3: Try PCIe storage devices as a fallback
+            if storage_str == "N/A":
+                pcie_devices = system_data.get('PCIeDevices', [])
+                if pcie_devices:
+                    total_bytes = 0
+                    drive_count = 0
+                    
+                    for pcie_device in pcie_devices:
+                        try:
+                            pcie_response = session.get(f"https://{cimc_ip}{pcie_device['@odata.id']}", timeout=30)
+                            if pcie_response.status_code == 200:
+                                pcie_data = pcie_response.json()
+                                device_name = pcie_data.get('Name', '').lower()
+                                
+                                # Check if this is a storage device
+                                if any(keyword in device_name for keyword in ['storage', 'sas', 'sata', 'nvme', 'hba', 'raid']):
+                                    # Try to get associated storage info
+                                    pcie_functions = pcie_data.get('Links', {}).get('PCIeFunction', [])
+                                    for func in pcie_functions:
+                                        try:
+                                            func_response = session.get(f"https://{cimc_ip}{func['@odata.id']}", timeout=30)
+                                            if func_response.status_code == 200:
+                                                func_data = func_response.json()
+                                                # Look for storage-related information
+                                                storage_controllers = func_data.get('Links', {}).get('StorageControllers', [])
+                                                if storage_controllers:
+                                                    # This indicates a storage controller, but we need actual drive info
+                                                    pass
+                                        except:
+                                            pass
+                        except:
+                            pass
+                            
+        except Exception as e:
             pass
         
-        # Network information - enhanced version
+        # Network information - comprehensive collection from multiple sources
         network_str = "N/A"
+        nic_details = []
+        
         try:
+            # Method 1: Try NetworkInterfaces endpoint
             network_endpoint = system_data.get('NetworkInterfaces', {}).get('@odata.id')
             if network_endpoint:
-                network_response = session.get(f"https://{cimc_ip}{network_endpoint}", timeout=30)
-                if network_response.status_code == 200:
-                    network_data = network_response.json()
-                    nic_details = []
-                    
-                    for nic_member in network_data.get('Members', []):
-                        nic_response = session.get(f"https://{cimc_ip}{nic_member['@odata.id']}", timeout=30)
-                        if nic_response.status_code == 200:
-                            nic_data = nic_response.json()
-                            
-                            # Get adapter name
-                            adapter_name = nic_data.get('Name', 'Unknown NIC')
-                            
-                            # Try to get more detailed adapter info
-                            adapter_link = nic_data.get('Links', {}).get('NetworkAdapter', {}).get('@odata.id')
-                            if adapter_link:
-                                adapter_response = session.get(f"https://{cimc_ip}{adapter_link}", timeout=30)
-                                if adapter_response.status_code == 200:
-                                    adapter_data = adapter_response.json()
-                                    model = adapter_data.get('Model', adapter_data.get('Name', adapter_name))
-                                    adapter_name = model
+                try:
+                    network_response = session.get(f"https://{cimc_ip}{network_endpoint}", timeout=30)
+                    if network_response.status_code == 200:
+                        network_data = network_response.json()
+                        
+                        for nic_member in network_data.get('Members', []):
+                            try:
+                                nic_response = session.get(f"https://{cimc_ip}{nic_member['@odata.id']}", timeout=30)
+                                if nic_response.status_code == 200:
+                                    nic_data = nic_response.json()
                                     
-                                    # Get port information
+                                    # Get adapter name and details
+                                    adapter_name = nic_data.get('Name', 'Unknown NIC')
+                                    adapter_id = nic_data.get('Id', '')
+                                    
+                                    # Try to get more detailed adapter info
+                                    adapter_link = nic_data.get('Links', {}).get('NetworkAdapter', {}).get('@odata.id')
+                                    if adapter_link:
+                                        adapter_response = session.get(f"https://{cimc_ip}{adapter_link}", timeout=30)
+                                        if adapter_response.status_code == 200:
+                                            adapter_data = adapter_response.json()
+                                            model = adapter_data.get('Model', adapter_data.get('Name', adapter_name))
+                                            adapter_name = model
+                                            
+                                            # Get port information
+                                            port_details = []
+                                            ports_link = adapter_data.get('NetworkPorts', {}).get('@odata.id')
+                                            if ports_link:
+                                                ports_response = session.get(f"https://{cimc_ip}{ports_link}", timeout=30)
+                                                if ports_response.status_code == 200:
+                                                    ports_data = ports_response.json()
+                                                    for port_member in ports_data.get('Members', []):
+                                                        port_response = session.get(f"https://{cimc_ip}{port_member['@odata.id']}", timeout=30)
+                                                        if port_response.status_code == 200:
+                                                            port_data = port_response.json()
+                                                            port_id = port_data.get('Id', '')
+                                                            speed = port_data.get('CurrentLinkSpeedMbps', 0)
+                                                            link_status = port_data.get('LinkStatus', 'Unknown')
+                                                            
+                                                            status = "Connected" if link_status == "Up" else "Disconnected"
+                                                            port_detail = f"Port {port_id}: {status}, {speed} Mbps"
+                                                            port_details.append(port_detail)
+                                    
+                                    if port_details:
+                                        nic_detail = f"{adapter_name}: {' | '.join(port_details)}"
+                                    else:
+                                        nic_detail = f"{adapter_name}: No port details available"
+                                    
+                                    nic_details.append(nic_detail)
+                            except:
+                                pass
+                except:
+                    pass
+            
+            # Method 2: Try PCIeDevices endpoint for network cards
+            pcie_devices = system_data.get('PCIeDevices', [])
+            if pcie_devices:
+                try:
+                    for pcie_device in pcie_devices:
+                        try:
+                            pcie_response = session.get(f"https://{cimc_ip}{pcie_device['@odata.id']}", timeout=30)
+                            if pcie_response.status_code == 200:
+                                pcie_data = pcie_response.json()
+                                device_name = pcie_data.get('Name', '')
+                                device_id = pcie_data.get('Id', '')
+                                
+                                # Check if this is a network device
+                                if any(keyword in device_name.lower() for keyword in ['network', 'ethernet', 'nic', 'i350', 'x710', 'e810', 'vic', 'mlom']):
+                                    # Determine adapter type based on name and ID
+                                    adapter_type = "Network Adapter"
+                                    if 'mlom' in device_id.lower() or 'mlom' in device_name.lower():
+                                        adapter_type = "MLOM Adapter"
+                                    elif 'vic' in device_name.lower():
+                                        adapter_type = "VIC Adapter"
+                                    elif any(brand in device_name.lower() for brand in ['cisco', 'ucs']):
+                                        adapter_type = "UCS Network Adapter"
+                                    elif 'intel' in device_name.lower():
+                                        adapter_type = "Intel Network Adapter"
+                                    
+                                    # Get slot/ID info
+                                    slot_info = f"Slot {device_id}" if device_id else "Unknown Slot"
+                                    
+                                    # Try to get associated PCIeFunction for more details
+                                    pcie_functions = pcie_data.get('Links', {}).get('PCIeFunction', [])
                                     port_details = []
-                                    ports_link = adapter_data.get('NetworkPorts', {}).get('@odata.id')
-                                    if ports_link:
-                                        ports_response = session.get(f"https://{cimc_ip}{ports_link}", timeout=30)
-                                        if ports_response.status_code == 200:
-                                            ports_data = ports_response.json()
-                                            for port_member in ports_data.get('Members', []):
-                                                port_response = session.get(f"https://{cimc_ip}{port_member['@odata.id']}", timeout=30)
-                                                if port_response.status_code == 200:
-                                                    port_data = port_response.json()
-                                                    port_id = port_data.get('Id', '')
-                                                    speed = port_data.get('CurrentLinkSpeedMbps', 0)
-                                                    link_status = port_data.get('LinkStatus', 'Unknown')
-                                                    
-                                                    status = "Connected" if link_status == "Up" else "Disconnected"
-                                                    port_detail = f"Port {port_id}: {status}, {speed} Mbps"
-                                                    port_details.append(port_detail)
+                                    
+                                    if pcie_functions:
+                                        for func in pcie_functions:
+                                            try:
+                                                func_response = session.get(f"https://{cimc_ip}{func['@odata.id']}", timeout=30)
+                                                if func_response.status_code == 200:
+                                                    func_data = func_response.json()
+                                                    # Try to get ethernet interface info
+                                                    eth_interfaces = func_data.get('Links', {}).get('EthernetInterfaces', [])
+                                                    if eth_interfaces:
+                                                        for eth_interface in eth_interfaces:
+                                                            try:
+                                                                eth_response = session.get(f"https://{cimc_ip}{eth_interface['@odata.id']}", timeout=30)
+                                                                if eth_response.status_code == 200:
+                                                                    eth_data = eth_response.json()
+                                                                    port_id = eth_data.get('Id', '')
+                                                                    speed = eth_data.get('SpeedMbps', 0)
+                                                                    link_status = eth_data.get('LinkStatus', 'Unknown')
+                                                                    
+                                                                    status = "Connected" if link_status == "LinkUp" else "Disconnected"
+                                                                    port_detail = f"Port {port_id}: {status}, {speed} Mbps"
+                                                                    port_details.append(port_detail)
+                                                            except:
+                                                                pass
+                                            except:
+                                                pass
+                                    
+                                    # Format the adapter details
+                                    if port_details:
+                                        nic_detail = f"{adapter_type} ({slot_info}) - {device_name}: {' | '.join(port_details)}"
+                                    else:
+                                        nic_detail = f"{adapter_type} ({slot_info}) - {device_name}: No port details available"
+                                    
+                                    # Avoid duplicates
+                                    if not any(device_name in existing for existing in nic_details):
+                                        nic_details.append(nic_detail)
+                        except:
+                            pass
+                except:
+                    pass
+            
+            # Method 3: Try EthernetInterfaces endpoint as fallback
+            if not nic_details:
+                try:
+                    ethernet_endpoint = system_data.get('EthernetInterfaces', {}).get('@odata.id')
+                    if ethernet_endpoint:
+                        ethernet_response = session.get(f"https://{cimc_ip}{ethernet_endpoint}", timeout=30)
+                        if ethernet_response.status_code == 200:
+                            ethernet_data = ethernet_response.json()
                             
-                            if port_details:
-                                nic_detail = f"{adapter_name}: {' | '.join(port_details)}"
-                            else:
-                                nic_detail = f"{adapter_name}: No port details available"
-                            
-                            nic_details.append(nic_detail)
-                    
-                    if nic_details:
-                        network_str = " || ".join(nic_details)
-                    else:
-                        network_str = "N/A"
-        except:
-            pass
+                            for eth_member in ethernet_data.get('Members', []):
+                                try:
+                                    eth_response = session.get(f"https://{cimc_ip}{eth_member['@odata.id']}", timeout=30)
+                                    if eth_response.status_code == 200:
+                                        eth_data = eth_response.json()
+                                        
+                                        interface_name = eth_data.get('Name', 'Unknown Interface')
+                                        interface_id = eth_data.get('Id', '')
+                                        speed = eth_data.get('SpeedMbps', 0)
+                                        link_status = eth_data.get('LinkStatus', 'Unknown')
+                                        
+                                        status = "Connected" if link_status == "LinkUp" else "Disconnected"
+                                        nic_detail = f"Ethernet Interface {interface_id} - {interface_name}: {status}, {speed} Mbps"
+                                        nic_details.append(nic_detail)
+                                except:
+                                    pass
+                except:
+                    pass
+            
+            # Format final network string
+            if nic_details:
+                network_str = " || ".join(nic_details)
+            else:
+                network_str = "N/A"
+                
+        except Exception as e:
+            network_str = "N/A"
         
         # OS information
         os_str = "N/A"
