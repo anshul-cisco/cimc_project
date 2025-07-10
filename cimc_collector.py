@@ -1,0 +1,607 @@
+import requests
+import pandas as pd
+import urllib3
+import sys
+import argparse
+import re
+import socket
+import ipaddress
+import logging
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Suppress SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def is_valid_ip_format(ip_string):
+    """Check if a string is in valid IPv4 format (x.x.x.x)."""
+    if not ip_string or not isinstance(ip_string, str):
+        return False
+    
+    # Basic regex pattern for IPv4 address
+    ip_pattern = r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$'
+    match = re.match(ip_pattern, ip_string.strip())
+    
+    if not match:
+        return False
+    
+    # Check that each octet is between 0 and 255
+    try:
+        octets = [int(match.group(i)) for i in range(1, 5)]
+        return all(0 <= octet <= 255 for octet in octets)
+    except ValueError:
+        return False
+
+def validate_config(cimc_ip, username, password):
+    """Validate CIMC configuration parameters."""
+    if not cimc_ip:
+        print("ERROR: Please provide CIMC IP")
+        return False
+    if not username:
+        print("ERROR: Please provide username")
+        return False
+    if not password:
+        print("ERROR: Please provide password")
+        return False
+    return True
+
+def collect_data_for_server(cimc_ip, username, password):
+    """Collect data for a single CIMC server - simplified and working version"""
+    
+    try:
+        print(f"🔍 Starting data collection for {cimc_ip}")
+        
+        # Set up session
+        session = requests.Session()
+        session.auth = (username, password)
+        session.verify = False
+        session.headers.update({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        })
+        
+        base_url = f"https://{cimc_ip}/redfish/v1"
+        
+        # Get systems
+        systems_response = session.get(f"{base_url}/Systems", timeout=30)
+        if systems_response.status_code != 200:
+            print(f"❌ Failed to get systems from {cimc_ip}: {systems_response.status_code}")
+            return []
+        
+        systems_data = systems_response.json()
+        if not systems_data.get('Members'):
+            print(f"❌ No systems found in {cimc_ip}")
+            return []
+        
+        # Get system info
+        system_endpoint = systems_data['Members'][0]['@odata.id']
+        system_response = session.get(f"https://{cimc_ip}{system_endpoint}", timeout=30)
+        if system_response.status_code != 200:
+            print(f"❌ Failed to get system info from {cimc_ip}: {system_response.status_code}")
+            return []
+        
+        system_data = system_response.json()
+        
+        # Extract basic information
+        hostname = system_data.get('HostName', system_data.get('Name', 'N/A'))
+        product_name = system_data.get('Model', 'N/A')
+        
+        # CPU information - prioritize total cores over CPU count
+        cpu_summary = system_data.get('ProcessorSummary', {})
+        cpu_count = cpu_summary.get('Count', 0)
+        cpu_cores = cpu_summary.get('CoreCount', 0)
+        cpu_model = cpu_summary.get('Model', 'N/A')
+        
+        # Calculate total cores: if CoreCount is available, use it directly
+        # If not available, try to calculate from individual CPU details
+        if cpu_cores > 0:
+            num_cpu = cpu_cores  # This is the total cores across all CPUs
+        else:
+            # Fallback: try to get individual CPU details to calculate total cores
+            total_cores = 0
+            try:
+                processors_endpoint = system_data.get('Processors', {}).get('@odata.id')
+                if processors_endpoint:
+                    processors_response = session.get(f"https://{cimc_ip}{processors_endpoint}", timeout=30)
+                    if processors_response.status_code == 200:
+                        processors_data = processors_response.json()
+                        for processor_member in processors_data.get('Members', []):
+                            processor_response = session.get(f"https://{cimc_ip}{processor_member['@odata.id']}", timeout=30)
+                            if processor_response.status_code == 200:
+                                processor_data = processor_response.json()
+                                # Try different field names for core count
+                                # Note: TotalCores might be a string, so convert to int
+                                core_count = 0
+                                if 'TotalCores' in processor_data:
+                                    try:
+                                        core_count = int(processor_data['TotalCores'])
+                                    except (ValueError, TypeError):
+                                        pass
+                                elif 'CoreCount' in processor_data:
+                                    try:
+                                        core_count = int(processor_data['CoreCount'])
+                                    except (ValueError, TypeError):
+                                        pass
+                                elif 'ProcessorCharacteristics' in processor_data and 'CoreCount' in processor_data['ProcessorCharacteristics']:
+                                    try:
+                                        core_count = int(processor_data['ProcessorCharacteristics']['CoreCount'])
+                                    except (ValueError, TypeError):
+                                        pass
+                                
+                                if core_count > 0:
+                                    total_cores += core_count
+                        
+                        if total_cores > 0:
+                            num_cpu = total_cores
+                        else:
+                            num_cpu = cpu_count  # Final fallback to CPU count
+                    else:
+                        num_cpu = cpu_count  # Final fallback to CPU count
+                else:
+                    num_cpu = cpu_count  # Final fallback to CPU count
+            except Exception as e:
+                num_cpu = cpu_count  # Final fallback to CPU count
+        
+        # Memory information - enhanced to handle various formats
+        memory_summary = system_data.get('MemorySummary', {})
+        total_memory_gb = 0
+        
+        # Try different field names for total memory
+        if 'TotalSystemMemoryGiB' in memory_summary:
+            total_memory_gb = memory_summary.get('TotalSystemMemoryGiB', 0)
+        elif 'TotalSystemMemoryGB' in memory_summary:
+            total_memory_gb = memory_summary.get('TotalSystemMemoryGB', 0)
+        elif 'TotalInstalledSystemMemoryGiB' in memory_summary:
+            total_memory_gb = memory_summary.get('TotalInstalledSystemMemoryGiB', 0)
+        elif 'TotalInstalledSystemMemoryGB' in memory_summary:
+            total_memory_gb = memory_summary.get('TotalInstalledSystemMemoryGB', 0)
+        
+        # If still no memory info, try to calculate from individual DIMMs
+        if total_memory_gb == 0:
+            try:
+                memory_endpoint = system_data.get('Memory', {}).get('@odata.id')
+                if memory_endpoint:
+                    memory_response = session.get(f"https://{cimc_ip}{memory_endpoint}", timeout=30)
+                    if memory_response.status_code == 200:
+                        memory_data = memory_response.json()
+                        total_memory_bytes = 0
+                        dimm_count = 0
+                        
+                        for dimm_member in memory_data.get('Members', []):
+                            try:
+                                dimm_response = session.get(f"https://{cimc_ip}{dimm_member['@odata.id']}", timeout=30)
+                                if dimm_response.status_code == 200:
+                                    dimm_data = dimm_response.json()
+                                    # Check if DIMM is populated
+                                    if dimm_data.get('Status', {}).get('State') == 'Enabled':
+                                        capacity_mb = dimm_data.get('CapacityMiB', 0)
+                                        if capacity_mb > 0:
+                                            total_memory_bytes += capacity_mb * 1024 * 1024  # Convert MiB to bytes
+                                            dimm_count += 1
+                            except:
+                                pass
+                        
+                        if total_memory_bytes > 0:
+                            total_memory_gb = total_memory_bytes / (1024**3)  # Convert bytes to GiB
+            except:
+                pass
+        
+        # Format memory string with DIMM count
+        if total_memory_gb > 0:
+            memory_str = f"{total_memory_gb:.2f} GiB"
+            
+            # Try to get DIMM count
+            try:
+                memory_endpoint = system_data.get('Memory', {}).get('@odata.id')
+                if memory_endpoint:
+                    memory_response = session.get(f"https://{cimc_ip}{memory_endpoint}", timeout=30)
+                    if memory_response.status_code == 200:
+                        memory_data = memory_response.json()
+                        dimm_count = len([m for m in memory_data.get('Members', []) if m])
+                        if dimm_count > 0:
+                            memory_str = f"{total_memory_gb:.2f} GiB ({dimm_count} DIMMs)"
+            except:
+                pass
+        else:
+            memory_str = "N/A"
+        
+        # Storage information
+        storage_str = "N/A"
+        try:
+            storage_endpoint = system_data.get('Storage', {}).get('@odata.id')
+            if storage_endpoint:
+                storage_response = session.get(f"https://{cimc_ip}{storage_endpoint}", timeout=30)
+                if storage_response.status_code == 200:
+                    storage_data = storage_response.json()
+                    total_bytes = 0
+                    drive_count = 0
+                    
+                    for controller_member in storage_data.get('Members', []):
+                        controller_response = session.get(f"https://{cimc_ip}{controller_member['@odata.id']}", timeout=30)
+                        if controller_response.status_code == 200:
+                            controller_data = controller_response.json()
+                            drives = controller_data.get('Drives', [])
+                            for drive_member in drives:
+                                drive_response = session.get(f"https://{cimc_ip}{drive_member['@odata.id']}", timeout=30)
+                                if drive_response.status_code == 200:
+                                    drive_data = drive_response.json()
+                                    capacity_bytes = drive_data.get('CapacityBytes', 0)
+                                    if capacity_bytes:
+                                        try:
+                                            total_bytes += int(capacity_bytes)
+                                            drive_count += 1
+                                        except:
+                                            pass
+                    
+                    if total_bytes > 0:
+                        if total_bytes >= (1024**4):  # TB
+                            storage_str = f"{total_bytes / (1024**4):.2f} TB ({drive_count} drives)"
+                        else:  # GB
+                            storage_str = f"{total_bytes / (1024**3):.2f} GB ({drive_count} drives)"
+        except:
+            pass
+        
+        # Network information - enhanced version
+        network_str = "N/A"
+        try:
+            network_endpoint = system_data.get('NetworkInterfaces', {}).get('@odata.id')
+            if network_endpoint:
+                network_response = session.get(f"https://{cimc_ip}{network_endpoint}", timeout=30)
+                if network_response.status_code == 200:
+                    network_data = network_response.json()
+                    nic_details = []
+                    
+                    for nic_member in network_data.get('Members', []):
+                        nic_response = session.get(f"https://{cimc_ip}{nic_member['@odata.id']}", timeout=30)
+                        if nic_response.status_code == 200:
+                            nic_data = nic_response.json()
+                            
+                            # Get adapter name
+                            adapter_name = nic_data.get('Name', 'Unknown NIC')
+                            
+                            # Try to get more detailed adapter info
+                            adapter_link = nic_data.get('Links', {}).get('NetworkAdapter', {}).get('@odata.id')
+                            if adapter_link:
+                                adapter_response = session.get(f"https://{cimc_ip}{adapter_link}", timeout=30)
+                                if adapter_response.status_code == 200:
+                                    adapter_data = adapter_response.json()
+                                    model = adapter_data.get('Model', adapter_data.get('Name', adapter_name))
+                                    adapter_name = model
+                                    
+                                    # Get port information
+                                    port_details = []
+                                    ports_link = adapter_data.get('NetworkPorts', {}).get('@odata.id')
+                                    if ports_link:
+                                        ports_response = session.get(f"https://{cimc_ip}{ports_link}", timeout=30)
+                                        if ports_response.status_code == 200:
+                                            ports_data = ports_response.json()
+                                            for port_member in ports_data.get('Members', []):
+                                                port_response = session.get(f"https://{cimc_ip}{port_member['@odata.id']}", timeout=30)
+                                                if port_response.status_code == 200:
+                                                    port_data = port_response.json()
+                                                    port_id = port_data.get('Id', '')
+                                                    speed = port_data.get('CurrentLinkSpeedMbps', 0)
+                                                    link_status = port_data.get('LinkStatus', 'Unknown')
+                                                    
+                                                    status = "Connected" if link_status == "Up" else "Disconnected"
+                                                    port_detail = f"Port {port_id}: {status}, {speed} Mbps"
+                                                    port_details.append(port_detail)
+                            
+                            if port_details:
+                                nic_detail = f"{adapter_name}: {' | '.join(port_details)}"
+                            else:
+                                nic_detail = f"{adapter_name}: No port details available"
+                            
+                            nic_details.append(nic_detail)
+                    
+                    if nic_details:
+                        network_str = " || ".join(nic_details)
+                    else:
+                        network_str = "N/A"
+        except:
+            pass
+        
+        # OS information
+        os_str = "N/A"
+        try:
+            oem_data = system_data.get('Oem', {}).get('Cisco', {})
+            os_str = oem_data.get('OperatingSystem', 'N/A')
+        except:
+            pass
+        
+        # Host IP - try to resolve
+        host_ip = "N/A"
+        try:
+            if not is_valid_ip_format(cimc_ip):
+                host_ip = socket.gethostbyname(cimc_ip)
+            else:
+                host_ip = cimc_ip
+        except:
+            pass
+        
+        # Build server data
+        server_data = {
+            "HostName": hostname,
+            "Product Name": product_name,
+            "No. of CPU": num_cpu,
+            "Type of CPU": cpu_model,
+            "Memory": memory_str,
+            "Disk Size": storage_str,
+            "NIC Details": network_str,
+            "OS": os_str,
+            "Host URL": cimc_ip,
+            "Host IP": host_ip
+        }
+        
+        print(f"✅ Successfully collected data for {hostname}")
+        return [server_data]
+    
+    except Exception as e:
+        print(f"❌ Error collecting data for {cimc_ip}: {e}")
+        return []
+
+def collect_from_csv(csv_file):
+    """Collect data from CIMC servers listed in a CSV file."""
+    all_servers = []
+    try:
+        df = pd.read_csv(csv_file)
+        required_columns = ['CIMC_IP', 'USERNAME', 'PASSWORD']
+        
+        # Check if all required columns exist
+        if not all(col in df.columns for col in required_columns):
+            missing = [col for col in required_columns if col not in df.columns]
+            print(f"Error: CSV file missing required columns: {', '.join(missing)}")
+            print(f"Required columns are: {', '.join(required_columns)}")
+            return []
+        
+        # Process each row in the CSV
+        for index, row in df.iterrows():
+            cimc_ip = row['CIMC_IP']
+            username = row['USERNAME']
+            password = row['PASSWORD']
+            
+            print(f"📡 Processing {index+1}/{len(df)}: {cimc_ip}")
+            
+            if validate_config(cimc_ip, username, password):
+                servers = collect_data_for_server(cimc_ip, username, password)
+                all_servers.extend(servers)
+            else:
+                print(f"❌ Skipping {cimc_ip} - invalid configuration")
+        
+        return all_servers
+    
+    except Exception as e:
+        print(f"Error reading CSV file: {e}")
+        return []
+
+def save_to_csv(servers, csv_file="cimc_server_inventory.csv"):
+    """Save collected server data to CSV file with smart update handling."""
+    if not servers:
+        print("No data to save.")
+        return False
+    
+    # Only include columns we actually need
+    columns = [
+        "HostName", "Product Name", "No. of CPU", "Type of CPU", "Memory", 
+        "Disk Size", "NIC Details", "OS", "Host URL", "Host IP"
+    ]
+
+    new_df = pd.DataFrame(servers)
+    
+    # Ensure all required columns exist, fill missing with 'N/A'
+    for col in columns:
+        if col not in new_df.columns:
+            new_df[col] = 'N/A'
+    
+    # Select only the required columns
+    new_df = new_df[columns]
+
+    try:
+        # Check if file exists
+        try:
+            existing_df = pd.read_csv(csv_file)
+            
+            # Track what happened with each server
+            new_servers = []
+            updated_servers = []
+            unchanged_servers = []
+            
+            # Process each new server
+            for _, new_server in new_df.iterrows():
+                hostname = new_server['HostName']
+                host_url = new_server['Host URL']
+                
+                # Check if server already exists (match by both HostName and Host URL)
+                existing_match = existing_df[
+                    (existing_df['HostName'] == hostname) & 
+                    (existing_df['Host URL'] == host_url)
+                ]
+                
+                if len(existing_match) > 0:
+                    # Server exists, check if data has changed
+                    existing_server = existing_match.iloc[0]
+                    
+                    # Compare all fields to see if there are any changes
+                    has_changes = False
+                    changes = []
+                    
+                    for col in columns:
+                        old_value = str(existing_server[col]).strip()
+                        new_value = str(new_server[col]).strip()
+                        
+                        if old_value != new_value:
+                            has_changes = True
+                            changes.append(f"{col}: '{old_value}' -> '{new_value}'")
+                    
+                    if has_changes:
+                        # Update the existing server in place with proper type handling
+                        mask = (existing_df['HostName'] == hostname) & (existing_df['Host URL'] == host_url)
+                        for col in columns:
+                            # Ensure proper data types to avoid pandas warnings
+                            value = new_server[col]
+                            if value is None or str(value).lower() == 'nan' or value == '':
+                                value = 'N/A'
+                            existing_df.loc[mask, col] = value
+                        
+                        updated_servers.append({
+                            'hostname': hostname,
+                            'host_url': host_url,
+                            'changes': changes
+                        })
+                        print(f"🔄 UPDATED: {hostname}")
+                    else:
+                        unchanged_servers.append({
+                            'hostname': hostname,
+                            'host_url': host_url
+                        })
+                else:
+                    # New server, add to existing dataframe
+                    existing_df = pd.concat([existing_df, new_server.to_frame().T], ignore_index=True)
+                    new_servers.append({
+                        'hostname': hostname,
+                        'host_url': host_url
+                    })
+                    print(f"➕ ADDED: {hostname}")
+            
+            # Save the updated dataframe
+            existing_df.to_csv(csv_file, index=False)
+            
+            # Print summary
+            print(f"\n📊 SUMMARY: {len(new_servers)} added, {len(updated_servers)} updated, {len(unchanged_servers)} unchanged")
+                    
+        except (FileNotFoundError, pd.errors.EmptyDataError):
+            # If file doesn't exist or is empty, save new data
+            new_df.to_csv(csv_file, index=False)
+            print(f"✅ Created {csv_file} with {len(servers)} server(s)")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error saving CSV file: {e}")
+        return False
+
+def print_cimc_setup_guide():
+    """Print comprehensive CIMC setup guide for troubleshooting."""
+    print("\n" + "=" * 80)
+    print("CISCO CIMC SETUP GUIDE FOR DATA COLLECTION")
+    print("=" * 80)
+    print("PREREQUISITES:")
+    print("  • CIMC firmware version 4.0 or higher recommended")
+    print("  • Network connectivity to CIMC management interface")
+    print("  • Administrator or Read-Only user account")
+    print("")
+    print("STEP 1: VERIFY CIMC NETWORK ACCESS")
+    print("  1. Ping the CIMC IP address: ping <CIMC_IP>")
+    print("  2. Test HTTPS port: telnet <CIMC_IP> 443")
+    print("  3. Access web interface: https://<CIMC_IP>")
+    print("")
+    print("STEP 2: ENABLE REDFISH API SERVICE")
+    print("  1. Login to CIMC web interface with admin credentials")
+    print("  2. Navigate to: Admin → Communication Services")
+    print("  3. Find 'Redfish' in the services list")
+    print("  4. Check the 'Enabled' checkbox for Redfish")
+    print("  5. Click 'Save Changes' button")
+    print("  6. Wait 1-2 minutes for service to initialize")
+    print("  7. Verify service status shows 'Running'")
+    print("")
+    print("STEP 3: VERIFY USER PERMISSIONS")
+    print("  1. Go to: Admin → User Management → Local Users")
+    print("  2. Select your user account")
+    print("  3. Ensure role is 'Administrator' or 'Read-Only'")
+    print("  4. If creating new user, assign appropriate role")
+    print("  5. Save changes and test login")
+    print("")
+    print("STEP 4: VERIFY HTTPS/SSL SETTINGS")
+    print("  1. Go to: Admin → Communication Services → HTTP/HTTPS")
+    print("  2. Ensure HTTPS is enabled on port 443")
+    print("  3. SSL certificate should be present (self-signed is OK)")
+    print("")
+    print("STEP 5: TEST API ACCESS")
+    print("  1. Try accessing: https://<CIMC_IP>/redfish/v1/")
+    print("  2. Should return JSON response (may show cert warning)")
+    print("  3. If blocked, check firewall and network settings")
+    print("")
+    print("TROUBLESHOOTING COMMON ISSUES:")
+    print("  • Service Disabled: Enable Redfish in Communication Services")
+    print("  • Authentication Failed: Check username/password and user role")
+    print("  • Network Unreachable: Verify IP, routing, and firewall rules")
+    print("  • SSL/TLS Errors: Accept self-signed certificates or update CIMC firmware")
+    print("  • Timeout: Check network latency and CIMC performance")
+    print("")
+    print("CISCO DOCUMENTATION:")
+    print("  • CIMC Configuration Guide: cisco.com/c/en/us/support/servers-unified-computing/")
+    print("  • Redfish API Reference: dmtf.org/standards/redfish")
+    print("=" * 80)
+
+def main():
+    """Main function to collect data and save to CSV."""
+    parser = argparse.ArgumentParser(description='CIMC Server Inventory Data Collection Tool')
+    
+    # Add help option to display setup guide
+    parser.add_argument('--setup-help', action='store_true',
+                       help='Display comprehensive CIMC setup guide and exit')
+    
+    # Create a mutually exclusive group for input method
+    input_group = parser.add_mutually_exclusive_group(required=False)
+    input_group.add_argument('-s', '--single', action='store_true', 
+                            help='Collect data from a single CIMC server')
+    input_group.add_argument('-c', '--csv', type=str, 
+                            help='Path to CSV file containing CIMC server details')
+    
+    # Arguments for single server mode
+    parser.add_argument('-i', '--ip', type=str, default="",
+                       help='CIMC IP address (required with -s)')
+    parser.add_argument('-u', '--username', type=str, default="",
+                       help='CIMC username (required with -s)')
+    parser.add_argument('-p', '--password', type=str, default="",
+                       help='CIMC password (required with -s)')
+    
+    # Output file
+    parser.add_argument('-o', '--output', type=str, default="cimc_server_inventory.csv",
+                       help='Output CSV file path (default: cimc_server_inventory.csv)')
+    
+    args = parser.parse_args()
+    
+    # If setup help is requested, print the guide and exit
+    if args.setup_help:
+        print_cimc_setup_guide()
+        sys.exit(0)
+    
+    # Now check if required arguments are provided for actual collection
+    if not args.single and not args.csv:
+        parser.error("one of the arguments -s/--single -c/--csv is required for data collection")
+    
+    print("=" * 60)
+    print("CIMC Server Inventory Data Collection Tool")
+    print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 60)
+    
+    collected_data = []
+    
+    if args.single:
+        # Collect data from a single CIMC server
+        if validate_config(args.ip, args.username, args.password):
+            collected_data = collect_data_for_server(args.ip, args.username, args.password)
+        else:
+            print("❌ Configuration validation failed")
+            sys.exit(1)
+    
+    elif args.csv:
+        # Collect data from CIMC servers listed in CSV file
+        collected_data = collect_from_csv(args.csv)
+    
+    if collected_data:
+        save_to_csv(collected_data, args.output)
+        print(f"\n✅ Collection complete: {len(collected_data)} servers processed")
+    else:
+        print("❌ No data collected - check connectivity and credentials")
+        sys.exit(1)
+    
+    print("\n" + "=" * 60)
+    print(f"✅ Collection completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 60)
+
+if __name__ == "__main__":
+    main()

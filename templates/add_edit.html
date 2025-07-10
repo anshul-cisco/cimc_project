@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Edit Server: ' + server.HostName if server.HostName else 'Add New Server' }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Modern Navy Blue & White Theme */
+        :root {
+            --primary-navy: #1e3a8a;
+            --secondary-navy: #3b82f6;
+            --light-navy: #60a5fa;
+            --dark-navy: #1e40af;
+            --accent-blue: #06b6d4;
+            --pure-white: #ffffff;
+            --light-gray: #f8fafc;
+            --medium-gray: #e2e8f0;
+            --dark-gray: #475569;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 50%, var(--light-navy) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: var(--pure-white);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--medium-gray);
+            text-align: center;
+        }
+        
+        h1 { 
+            color: var(--primary-navy);
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 50%, var(--light-navy) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        h1 i {
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .card {
+            background: var(--pure-white);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--medium-gray);
+            margin-bottom: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 28px;
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 10px; 
+            font-weight: 600;
+            color: var(--primary-navy);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        input[type="text"], input[type="password"], input[type="email"], textarea {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid var(--medium-gray);
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: inherit;
+            background: var(--pure-white);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-primary);
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary-navy);
+            background: var(--pure-white);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        input[readonly] {
+            background: var(--light-gray);
+            cursor: not-allowed;
+            border-color: var(--medium-gray);
+        }
+        
+        .button-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+        
+        input[type="submit"], .button, button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            color: var(--pure-white);
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 160px;
+            justify-content: center;
+        }
+        
+        input[type="submit"]:hover, .button:hover, button:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+            background: linear-gradient(135deg, var(--dark-navy) 0%, var(--primary-navy) 100%);
+        }
+        
+        .back-button {
+            background: linear-gradient(135deg, var(--dark-gray) 0%, var(--text-secondary) 100%);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .back-button:hover {
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--dark-gray) 100%);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .field-help {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            font-style: italic;
+        }
+        
+        .required-indicator {
+            color: var(--error);
+            font-weight: bold;
+        }
+        
+        input:invalid {
+            border-color: var(--error);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+        
+        input:valid {
+            border-color: var(--success);
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header, .card {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .button-container {
+                flex-direction: column;
+            }
+        }
+        
+        /* Loading animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 100;
+        }
+        
+        .alert {
+            padding: 20px 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 16px;
+            border: 2px solid;
+            animation: fadeIn 0.5s ease-out, pulse 2s ease-in-out;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .alert::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 15px 15px 0 0;
+        }
+        
+        .alert-error {
+            background: rgba(255, 255, 255, 0.95);
+            color: #b91c1c;
+            border-color: #dc2626;
+            box-shadow: 0 8px 32px rgba(220, 38, 38, 0.4);
+        }
+        
+        .alert-error::before {
+            background: linear-gradient(90deg, #dc2626, #ef4444);
+        }
+        
+        .alert-success {
+            background: rgba(255, 255, 255, 0.95);
+            color: #15803d;
+            border-color: #16a34a;
+            box-shadow: 0 8px 32px rgba(34, 197, 94, 0.4);
+        }
+        
+        .alert-success::before {
+            background: linear-gradient(90deg, #16a34a, #22c55e);
+        }
+        
+        .alert-warning {
+            background: rgba(255, 255, 255, 0.95);
+            color: #c2410c;
+            border-color: #ea580c;
+            box-shadow: 0 8px 32px rgba(234, 88, 12, 0.4);
+        }
+        
+        .alert-warning::before {
+            background: linear-gradient(90deg, #ea580c, #f97316);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                {% if server.HostName %}
+                    <i class="fas fa-edit"></i> Edit Server: {{ server.HostName }}
+                {% else %}
+                    <i class="fas fa-plus"></i> Add New Server
+                {% endif %}
+            </h1>
+        </div>
+        
+        <!-- Flash Messages -->
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {% if category == 'error' %}
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> {{ message }}
+                            {% elif category == 'success' %}
+                                <i class="fas fa-check-circle"></i> <strong>Success:</strong> {{ message }}
+                            {% elif category == 'warning' %}
+                                <i class="fas fa-exclamation-circle"></i> <strong>Warning:</strong> {{ message }}
+                            {% else %}
+                                <i class="fas fa-info-circle"></i> <strong>Info:</strong> {{ message }}
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="card">
+            <form method="POST" onsubmit="return validateForm()">
+                <!-- Loop through FIELDNAMES to create form fields -->
+                {% for field in fieldnames %}
+                <div class="form-group">
+                    <label for="{{ field }}">{{ field }} <span style="color: #e53e3e;">*</span></label>
+                    <input type="text" id="{{ field }}" name="{{ field }}" 
+                           value="{{ server[field] if server and field in server else '' }}"
+                           {% if field == 'HostName' and server.HostName %}readonly{% endif %}
+                           required
+                           placeholder="Enter {{ field.lower() }} (required)"
+                           {% if field == 'HostName' %}pattern="[A-Za-z0-9_-]+" title="HostName should contain only letters, numbers, hyphens, and underscores"{% endif %}
+                           {% if field == 'No. of CPU' %}pattern="[0-9]+" title="Please enter a valid number"{% endif %}
+                           {% if field == 'Host IP' %}pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$" title="Please enter a valid IP address (e.g., 192.168.1.1)"{% endif %}>
+                    {% if field == 'Host URL' %}
+                    <div class="field-help">Enter the CIMC IP address or hostname</div>
+                    {% elif field == 'NIC Details' %}
+                    <div class="field-help">Format: AdapterName: Port PortID: Status, Speed</div>
+                    {% elif field == 'Product Name' %}
+                    <div class="field-help">Server model/product name (e.g., UCS C240 M5)</div>
+                    {% elif field == 'Host IP' %}
+                    <div class="field-help">IPv4 address of the CIMC interface</div>
+                    {% elif field == 'No. of CPU' %}
+                    <div class="field-help">Total number of CPU cores (numeric value only)</div>
+                    {% elif field == 'Memory' %}
+                    <div class="field-help">Memory specification (e.g., 32 GB, 64 GiB)</div>
+                    {% elif field == 'Disk Size' %}
+                    <div class="field-help">Total disk storage (e.g., 1 TB, 500 GB)</div>
+                    {% elif field == 'Type of CPU' %}
+                    <div class="field-help">CPU model and specifications</div>
+                    {% elif field == 'OS' %}
+                    <div class="field-help">Operating System (e.g., ESXi, Windows, Linux)</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <div class="button-container">
+                    <a href="{{ url_for('index') }}" class="button back-button">
+                        <i class="fas fa-arrow-left"></i> Back to Inventory
+                    </a>
+                    <button type="submit" class="button">
+                        <i class="fas fa-save"></i> Save Server
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function validateForm() {
+            // Get all required input fields
+            const inputs = document.querySelectorAll('input[required]');
+            let isValid = true;
+            let emptyFields = [];
+            
+            // Check each field
+            inputs.forEach(input => {
+                const value = input.value.trim();
+                const invalidValues = ['', 'N/A', 'na', 'n/a', 'null', 'none', 'undefined', 'n.a.', 'n.a', 'not available'];
+                
+                if (!value || invalidValues.includes(value.toLowerCase())) {
+                    isValid = false;
+                    emptyFields.push(input.getAttribute('name'));
+                    input.style.borderColor = '#dc2626';
+                    input.style.borderWidth = '2px';
+                    input.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.3)';
+                    input.style.backgroundColor = 'rgba(254, 226, 226, 0.5)';
+                } else {
+                    input.style.borderColor = '#16a34a';
+                    input.style.borderWidth = '2px';
+                    input.style.boxShadow = '0 0 0 3px rgba(34, 197, 94, 0.3)';
+                    input.style.backgroundColor = 'rgba(240, 253, 244, 0.5)';
+                }
+            });
+            
+            if (!isValid) {
+                // Create a more prominent alert
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: white;
+                    border: 3px solid #dc2626;
+                    border-radius: 15px;
+                    padding: 30px;
+                    max-width: 500px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                    z-index: 1000;
+                    text-align: center;
+                    font-family: inherit;
+                `;
+                alertDiv.innerHTML = `
+                    <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                    <h3 style="color: #dc2626; margin-bottom: 15px; font-size: 20px;">Validation Error</h3>
+                    <p style="color: #374151; margin-bottom: 20px; font-size: 16px;">
+                        Please fill in all required fields:<br>
+                        <strong>${emptyFields.join(', ')}</strong>
+                    </p>
+                    <button onclick="this.parentElement.remove()" style="
+                        background: #dc2626;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">OK</button>
+                `;
+                document.body.appendChild(alertDiv);
+                
+                // Also scroll to first invalid field
+                const firstInvalid = document.querySelector('input[style*="rgb(220, 38, 38)"]');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalid.focus();
+                }
+                
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Real-time validation as user types
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input[required]');
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    const value = this.value.trim();
+                    const invalidValues = ['', 'N/A', 'na', 'n/a', 'null', 'none', 'undefined'];
+                    
+                    if (!value || invalidValues.includes(value.toLowerCase())) {
+                        this.style.borderColor = '#dc2626';
+                        this.style.borderWidth = '2px';
+                        this.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.2)';
+                        this.style.backgroundColor = 'rgba(254, 226, 226, 0.3)';
+                    } else {
+                        this.style.borderColor = '#16a34a';
+                        this.style.borderWidth = '2px';
+                        this.style.boxShadow = '0 0 0 3px rgba(34, 197, 94, 0.2)';
+                        this.style.backgroundColor = 'rgba(240, 253, 244, 0.3)';
+                    }
+                });
+                
+                // Also validate on blur
+                input.addEventListener('blur', function() {
+                    if (this.value.trim() === '') {
+                        this.style.borderColor = '#dc2626';
+                        this.style.borderWidth = '2px';
+                        this.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.3)';
+                        this.style.backgroundColor = 'rgba(254, 226, 226, 0.5)';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIMC Server Inventory - Professional Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Modern Navy Blue & White Theme */
+        :root {
+            --primary-navy: #1e3a8a;
+            --secondary-navy: #3b82f6;
+            --light-navy: #60a5fa;
+            --dark-navy: #1e40af;
+            --accent-blue: #06b6d4;
+            --pure-white: #ffffff;
+            --light-gray: #f8fafc;
+            --medium-gray: #e2e8f0;
+            --dark-gray: #475569;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 50%, var(--light-navy) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .main-container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header Section */
+        .header {
+            background: linear-gradient(135deg, var(--pure-white) 0%, #f1f5f9 100%);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 24px;
+        }
+
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 24px;
+        }
+
+        .flash-message {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid;
+        }
+
+        .flash-success {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        .flash-error {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+            color: var(--error);
+            border-color: var(--error);
+        }
+
+        .flash-warning {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%);
+            color: var(--warning);
+            border-color: var(--warning);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            color: var(--pure-white);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--light-navy) 100%);
+            color: var(--pure-white);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Table Container */
+        .table-container {
+            background: var(--pure-white);
+            border-radius: 20px;
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            border: 1px solid var(--medium-gray);
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            color: var(--pure-white);
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .table-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 1200px;
+        }
+
+        th, td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+            vertical-align: top;
+        }
+
+        th {
+            background: linear-gradient(135deg, var(--light-gray) 0%, #f1f5f9 100%);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.02) 0%, rgba(59, 130, 246, 0.01) 100%);
+        }
+
+        /* Column specific styling */
+        .hostname-col {
+            font-weight: 600;
+            color: var(--primary-navy);
+        }
+
+        .status-col {
+            text-align: center;
+        }
+
+        /* NIC Details Styling */
+        .nic-details {
+            max-width: 400px;
+            font-size: 13px;
+        }
+
+        .nic-adapter {
+            background: linear-gradient(135deg, var(--light-gray) 0%, #f8fafc 100%);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--secondary-navy);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nic-adapter:last-child {
+            margin-bottom: 0;
+        }
+
+        .nic-adapter-name {
+            font-weight: 600;
+            color: var(--primary-navy);
+            font-size: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nic-ports {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nic-port {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            background: var(--pure-white);
+            border-radius: 6px;
+            border: 1px solid var(--medium-gray);
+        }
+
+        .port-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .port-status.connected {
+            color: var(--success);
+        }
+
+        .port-status.disconnected {
+            color: var(--error);
+        }
+
+        .port-speed {
+            background: linear-gradient(135deg, var(--secondary-navy) 0%, var(--primary-navy) 100%);
+            color: var(--pure-white);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        /* Action Links */
+        .action-links {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .action-edit {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--light-navy) 100%);
+            color: var(--pure-white);
+        }
+
+        .action-edit:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .action-delete {
+            background: linear-gradient(135deg, var(--error) 0%, #dc2626 100%);
+            color: var(--pure-white);
+        }
+
+        .action-delete:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 64px 32px;
+            background: var(--pure-white);
+            border-radius: 20px;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .empty-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .empty-description {
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Card Selector Styling */
+        .card-selector {
+            min-width: 300px;
+        }
+        
+        /* Modern Dropdown Styling */
+        .modern-dropdown {
+            position: relative;
+            min-width: 300px;
+            margin-bottom: 20px;
+        }
+        
+        .dropdown-trigger {
+            background: linear-gradient(135deg, var(--pure-white) 0%, #f8fafc 100%);
+            border: 2px solid var(--light-gray);
+            border-radius: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dropdown-trigger::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary-navy), var(--secondary-navy));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .dropdown-trigger:hover {
+            border-color: var(--primary-navy);
+            box-shadow: 0 4px 16px rgba(30, 58, 138, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        .dropdown-trigger:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .dropdown-trigger.active {
+            border-color: var(--primary-navy);
+            box-shadow: 0 4px 20px rgba(30, 58, 138, 0.2);
+        }
+        
+        .dropdown-trigger.active::before {
+            transform: scaleX(1);
+        }
+        
+        .selected-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .selected-option i {
+            color: var(--primary-navy);
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .option-text {
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .dropdown-icon {
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+        
+        .dropdown-trigger.active .dropdown-icon {
+            transform: rotate(180deg);
+        }
+        
+        .dropdown-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--pure-white);
+            border: 2px solid var(--primary-navy);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(30, 58, 138, 0.15);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            margin-top: 4px;
+        }
+        
+        .dropdown-options.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .option-group {
+            border-bottom: 1px solid var(--light-gray);
+        }
+        
+        .option-group:last-child {
+            border-bottom: none;
+        }
+        
+        .option-group-label {
+            padding: 12px 16px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid var(--light-gray);
+        }
+        
+        .dropdown-option {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .dropdown-option:hover {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-left-color: var(--primary-navy);
+            transform: translateX(2px);
+        }
+        
+        .dropdown-option.selected {
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            color: var(--pure-white);
+            border-left-color: var(--pure-white);
+        }
+        
+        .dropdown-option.selected:hover {
+            transform: none;
+        }
+        
+        .dropdown-option-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .dropdown-option-text {
+            flex: 1;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .dropdown-option-badge {
+            background: rgba(30, 58, 138, 0.1);
+            color: var(--primary-navy);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .dropdown-option.selected .dropdown-option-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--pure-white);
+        }
+
+        /* Dropdown scrollbar styling */
+        .dropdown-options::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .dropdown-options::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        
+        .dropdown-options::-webkit-scrollbar-thumb {
+            background: var(--primary-navy);
+            border-radius: 3px;
+        }
+        
+        .dropdown-options::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-navy);
+        }
+        
+        /* Loading state styling */
+        .dropdown-trigger.loading .selected-option {
+            opacity: 0.7;
+        }
+        
+        .dropdown-trigger.loading .dropdown-icon {
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Error state styling */
+        .dropdown-trigger.error {
+            border-color: var(--error);
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        }
+        
+        .dropdown-trigger.error .selected-option i {
+            color: var(--error);
+        }
+        
+        /* Empty state styling */
+        .dropdown-trigger.empty {
+            border-color: var(--text-secondary);
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        }
+        
+        .dropdown-trigger.empty .selected-option {
+            opacity: 0.6;
+        }
+        
+        /* Card selector container improvements */
+        .card-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 320px;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .modern-dropdown {
+                min-width: 250px;
+            }
+            
+            .card-selector {
+                min-width: 280px;
+            }
+            
+            .dropdown-trigger {
+                padding: 10px 12px;
+            }
+            
+            .dropdown-option {
+                padding: 10px 12px;
+            }
+            
+            .option-group-label {
+                padding: 10px 12px 6px;
+            }
+        }
+
+        .card-details-container {
+            margin-top: 8px;
+        }
+        
+        /* Detail Type Badge */
+        .detail-type-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 11px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            box-shadow: var(--shadow-sm);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Server Detail Cards */
+        .server-detail-card {
+            position: relative;
+            background: linear-gradient(135deg, var(--pure-white) 0%, var(--light-gray) 100%);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            padding: 18px;
+            margin: 8px 0;
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--secondary-navy);
+            overflow: hidden;
+        }
+
+        .server-detail-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--secondary-navy), var(--light-navy), var(--accent-blue));
+            opacity: 0.8;
+        }
+        
+        .server-detail-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .server-detail-card h4 {
+            margin: 0 0 15px 0;
+            color: var(--primary-navy);
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            padding-top: 5px;
+        }
+        
+        .server-detail-card h4 i {
+            color: var(--secondary-navy);
+            font-size: 16px;
+        }
+        
+        .detail-property {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+        
+        .property-name {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        .property-value {
+            text-align: right;
+            max-width: 70%;
+            word-break: break-word;
+            color: var(--text-primary);
+        }
+        
+        /* Enhanced styles for card details */
+        .detail-section {
+            margin-top: 12px;
+            font-weight: 600;
+            color: var(--primary-navy);
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        /* PCIe-specific badges */
+        .detail-type-badge.pcie { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .detail-type-badge.pcie.network { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+        .detail-type-badge.pcie.storage { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .detail-type-badge.pcie.graphics { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .detail-type-badge.pcie.accelerator { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+        .detail-type-badge.pcie.controller { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+        
+        /* Status styles */
+        .function-enabled {
+            color: var(--success);
+            font-weight: 500;
+        }
+        
+        .function-disabled {
+            color: var(--dark-gray);
+            font-style: italic;
+        }
+        
+        .port-connected {
+            color: var(--success);
+            font-weight: 500;
+        }
+        
+        .port-disconnected {
+            color: var(--dark-gray);
+            font-style: italic;
+        }
+        
+        .status-ok {
+            color: var(--success);
+            font-weight: 500;
+        }
+        
+        .status-warning {
+            color: var(--warning);
+            font-weight: 500;
+        }
+        
+        /* Section header styles */
+        .detail-section-header {
+            margin-top: 14px;
+            padding-bottom: 2px;
+            border-bottom: 1px solid var(--medium-gray);
+            font-weight: 600;
+            color: var(--primary-navy);
+            font-size: 14px;
+        }
+        
+        .header-detail {
+            margin-bottom: 12px;
+        }
+        
+        .header-detail .property-value {
+            font-weight: 600;
+            color: var(--dark-navy);
+            font-size: 14px;
+        }
+        
+        /* Enhance icons in card details */
+        .detail-property i,
+        .detail-section i {
+            margin-right: 5px;
+            width: 14px;
+            text-align: center;
+        }
+        
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .table-container {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Loading States */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--pure-white);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        /* Loading and Status Messages */
+        .loading-spinner {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            margin: 20px auto;
+        }
+        
+        .loading-spinner::after {
+            content: '';
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--light-gray);
+            border-radius: 50%;
+            border-top-color: var(--primary-navy);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        .loading-text {
+            color: var(--text-secondary);
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .error-message, .success-message {
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .error-message {
+            color: var(--error);
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        .success-message {
+            color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header Section -->
+        <div class="header">
+            <h1>
+                <i class="fas fa-server"></i>
+                CIMC Server Inventory
+            </h1>
+            
+            <!-- Flash Messages -->
+            <div class="flash-messages">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}">
+                                {% if category == 'success' %}
+                                    <i class="fas fa-check-circle"></i>
+                                {% elif category == 'error' %}
+                                    <i class="fas fa-exclamation-circle"></i>
+                                {% elif category == 'warning' %}
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                {% else %}
+                                    <i class="fas fa-info-circle"></i>
+                                {% endif %}
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="/add" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Add New Server
+                </a>
+                <a href="/collect" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i>
+                    Collect Server Data
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        {% if servers %}
+        <div class="table-container">
+            <div class="table-header">
+                <div class="table-title">
+                    <i class="fas fa-database"></i>
+                    Server Inventory
+                </div>
+                <div class="table-count">
+                    {{ servers|length }} Server{{ 's' if servers|length != 1 else '' }}
+                </div>
+            </div>
+            
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            {% for key in servers[0].keys() %}
+                            <th>
+                                {% if key == 'HostName' %}
+                                    <i class="fas fa-tag"></i> {{ key }}
+                                {% elif key == 'Product Name' %}
+                                    <i class="fas fa-microchip"></i> {{ key }}
+                                {% elif key == 'No. of CPU' %}
+                                    <i class="fas fa-calculator"></i> {{ key }}
+                                {% elif key == 'Type of CPU' %}
+                                    <i class="fas fa-processor"></i> {{ key }}
+                                {% elif key == 'Memory' %}
+                                    <i class="fas fa-memory"></i> {{ key }}
+                                {% elif key == 'Disk Size' %}
+                                    <i class="fas fa-hdd"></i> {{ key }}
+                                {% elif key == 'NIC Details' %}
+                                    <i class="fas fa-network-wired"></i> Network Cards
+                                {% elif key == 'OS' %}
+                                    <i class="fas fa-desktop"></i> {{ key }}
+                                {% elif key == 'Host URL' %}
+                                    <i class="fas fa-link"></i> {{ key }}
+                                {% elif key == 'Host IP' %}
+                                    <i class="fas fa-network-wired"></i> {{ key }}
+                                {% else %}
+                                    {{ key }}
+                                {% endif %}
+                            </th>
+                            {% endfor %}
+                            <th><i class="fas fa-cogs"></i> Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for server in servers %}
+                        <tr class="server-row" data-hostname="{{ server.HostName }}" data-host-url="{{ server['Host URL'] }}">
+                            {% for key, value in server.items() %}
+                            <td {% if key == 'HostName' %}class="hostname-col"{% elif key == 'NIC Details' %}class="detail-cell"{% endif %}>
+                                {% if key == 'NIC Details' %}
+                                    <div class="card-selector">
+                                        <div class="modern-dropdown">
+                                            <div class="dropdown-trigger" onclick="toggleModernDropdown(this)">
+                                                <span class="selected-option">
+                                                    <i class="fas fa-network-wired"></i>
+                                                    <span class="option-text">Loading network cards...</span>
+                                                </span>
+                                                <i class="fas fa-chevron-down dropdown-icon"></i>
+                                            </div>
+                                            <div class="dropdown-options">
+                                                <!-- Options will be dynamically loaded -->
+                                            </div>
+                                        </div>
+                                        <div class="card-details-container">
+                                            <div class="server-detail-card">
+                                                <div class="detail-placeholder">
+                                                    <div class="loading-spinner"></div>
+                                                    <div class="loading-text">Loading network cards...</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% elif key == 'OS' and (not value or value == 'N/A' or value == 'nan') %}
+                                    <span style="color: var(--text-secondary); font-style: italic;">
+                                        <i class="fas fa-question-circle"></i>
+                                        Not detected
+                                    </span>
+                                {% elif key in ['No. of CPU'] %}
+                                    <div class="status-col">
+                                        <strong>{{ value }}</strong>
+                                    </div>
+                                {% else %}
+                                    {{ value }}
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                            <td>
+                                <div class="action-links">
+                                    <a href="/edit/{{ server.HostName }}" class="action-btn action-edit">
+                                        <i class="fas fa-edit"></i>
+                                        Edit
+                                    </a>
+                                    <a href="/delete/{{ server.HostName }}" class="action-btn action-delete" 
+                                       onclick="return confirm('Are you sure you want to delete server {{ server.HostName }}?')">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-server"></i>
+            </div>
+            <h2 class="empty-title">No Server Data Available</h2>
+            <p class="empty-description">
+                Get started by adding servers manually or running the CIMC data collector to automatically discover your infrastructure.
+            </p>
+            <div class="action-buttons">
+                <a href="/add" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Add Your First Server
+                </a>
+                <a href="/collect" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i>
+                    Auto-Discover Servers
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const selectedCards = {}; // Track selected card for each server
+        // Icons for each card type
+        const cardIcons = {
+            'network': 'fas fa-network-wired',
+            'nic': 'fas fa-ethernet',
+            'ethernet': 'fas fa-ethernet',
+            'mlom': 'fas fa-server',
+            'vic': 'fas fa-hdd',
+            'ocp': 'fas fa-memory',
+            'pcie': 'fas fa-microchip',
+            'pcie network': 'fas fa-ethernet',
+            'pcie storage': 'fas fa-database',
+            'pcie graphics': 'fas fa-tv',
+            'pcie accelerator': 'fas fa-bolt',
+            'pcie controller': 'fas fa-cogs',
+            'unknown': 'fas fa-question-circle'
+        };
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllNetworkCards();
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.modern-dropdown')) {
+                    closeAllDropdowns();
+                }
+            });
+        });
+        
+        function loadAllNetworkCards() {
+            document.querySelectorAll('tr.server-row').forEach(row => {
+                const hostname = row.getAttribute('data-hostname');
+                const hostUrl = row.getAttribute('data-host-url');
+                const dropdown = row.querySelector('.modern-dropdown');
+                
+                if (dropdown && hostname && hostUrl) {
+                    loadNetworkCardsForServer(hostname, hostUrl, dropdown, row);
+                }
+            });
+        }
+        
+        function loadNetworkCardsForServer(hostname, hostUrl, dropdown, row) {
+            const url = `/api/server-details?hostname=${encodeURIComponent(hostname)}&host_url=${encodeURIComponent(hostUrl)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        updateDropdownTrigger(dropdown, 'fas fa-exclamation-triangle', 'Error loading cards', 'error');
+                    } else if (data.cards?.length > 0) {
+                        populateModernDropdown(dropdown, data.cards, hostname, hostUrl, row);
+                    } else {
+                        updateDropdownTrigger(dropdown, 'fas fa-info-circle', 'No network cards found', 'empty');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching network cards:', error);
+                    updateDropdownTrigger(dropdown, 'fas fa-exclamation-triangle', 'Error loading cards', 'error');
+                });
+        }
+        
+        function populateModernDropdown(dropdown, cards, hostname, hostUrl, row) {
+            const optionsContainer = dropdown.querySelector('.dropdown-options');
+            const cardsByCategory = groupCardsByCategory(cards);
+            
+            optionsContainer.innerHTML = '';
+            
+            Object.entries(cardsByCategory).forEach(([category, categoryCards]) => {
+                const groupDiv = createOptionGroup(category, categoryCards, dropdown, hostname, hostUrl, row);
+                optionsContainer.appendChild(groupDiv);
+            });
+            
+            // Auto-select the first card
+            selectCard(dropdown, cards[0], hostname, hostUrl, row);
+        }
+        
+        function groupCardsByCategory(cards) {
+            return cards.reduce((acc, card) => {
+                if (!acc[card.category]) acc[card.category] = [];
+                acc[card.category].push(card);
+                return acc;
+            }, {});
+        }
+        
+        function createOptionGroup(category, cards, dropdown, hostname, hostUrl, row) {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'option-group';
+            
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'option-group-label';
+            labelDiv.textContent = category;
+            groupDiv.appendChild(labelDiv);
+            
+            cards.forEach(card => {
+                const optionDiv = createOptionElement(card, dropdown, hostname, hostUrl, row);
+                groupDiv.appendChild(optionDiv);
+            });
+            
+            return groupDiv;
+        }
+        
+        function createOptionElement(card, dropdown, hostname, hostUrl, row) {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'dropdown-option';
+            optionDiv.setAttribute('data-card-id', card.id);
+            optionDiv.setAttribute('data-category', card.category);
+            
+            const icon = cardIcons[card.category.toLowerCase()] || 'fas fa-question-circle';
+            optionDiv.innerHTML = `
+                <i class="${icon} dropdown-option-icon"></i>
+                <span class="dropdown-option-text">${card.name}</span>
+                <span class="dropdown-option-badge">${card.category.toUpperCase()}</span>
+            `;
+            
+            optionDiv.addEventListener('click', () => selectCard(dropdown, card, hostname, hostUrl, row));
+            return optionDiv;
+        }
+        
+        function selectCard(dropdown, card, hostname, hostUrl, row) {
+            const icon = cardIcons[card.category.toLowerCase()] || 'fas fa-question-circle';
+            updateDropdownTrigger(dropdown, icon, card.name, 'selected');
+            
+            // Update selected state in options
+            dropdown.querySelectorAll('.dropdown-option').forEach(opt => opt.classList.remove('selected'));
+            const selectedOption = dropdown.querySelector(`[data-card-id="${card.id}"]`);
+            selectedOption?.classList.add('selected');
+            
+            // Store selected card and close dropdown
+            selectedCards[`${hostname}_${hostUrl}`] = card.id;
+            closeDropdown(dropdown);
+            
+            // Load card details
+            loadCardDetails(hostname, hostUrl, card.id, row);
+        }
+        
+        function updateDropdownTrigger(dropdown, iconClass, text, state = 'default') {
+            const trigger = dropdown.querySelector('.dropdown-trigger');
+            const selectedOption = trigger.querySelector('.selected-option');
+            
+            selectedOption.querySelector('i').className = iconClass;
+            selectedOption.querySelector('.option-text').textContent = text;
+            
+            trigger.classList.remove('error', 'empty', 'selected');
+            if (state !== 'default') trigger.classList.add(state);
+        }
+        
+        function toggleModernDropdown(trigger) {
+            const dropdown = trigger.closest('.modern-dropdown');
+            const optionsContainer = dropdown.querySelector('.dropdown-options');
+            const isOpen = optionsContainer.classList.contains('show');
+            
+            closeAllDropdowns();
+            
+            if (!isOpen) {
+                trigger.classList.add('active');
+                optionsContainer.classList.add('show');
+            }
+        }
+        
+        function closeDropdown(dropdown) {
+            const trigger = dropdown.querySelector('.dropdown-trigger');
+            const optionsContainer = dropdown.querySelector('.dropdown-options');
+            
+            trigger.classList.remove('active');
+            optionsContainer.classList.remove('show');
+        }
+        
+        function closeAllDropdowns() {
+            document.querySelectorAll('.modern-dropdown').forEach(closeDropdown);
+        }
+        
+        function loadCardDetails(hostname, hostUrl, cardId, row) {
+            const detailsContainer = row.querySelector('.card-details-container');
+            
+            // Show loading state
+            detailsContainer.innerHTML = `
+                <div class="server-detail-card">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading details for ${cardId}...</div>
+                </div>
+            `;
+            
+            const url = `/api/server-details?hostname=${encodeURIComponent(hostname)}&host_url=${encodeURIComponent(hostUrl)}&card_id=${encodeURIComponent(cardId)}&_t=${Date.now()}`;
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        showErrorMessage(detailsContainer, data.error);
+                    } else {
+                        renderCardDetails(detailsContainer, data, cardId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching card details:', error);
+                    showErrorMessage(detailsContainer, `Error fetching details: ${error.message}`);
+                });
+        }
+        
+        function showErrorMessage(container, errorMessage) {
+            container.innerHTML = `
+                <div class="server-detail-card">
+                    <div class="detail-type-badge error">ERROR</div>
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i> ${errorMessage}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderCardDetails(container, data, cardId) {
+            const icon = cardIcons[data.category?.toLowerCase()] || 'fas fa-question-circle';
+            const details = data.details || [];
+            
+            const headerDetails = details.filter(d => d.type === 'header');
+            const summaryDetails = details.filter(d => d.type === 'summary');
+            const sectionHeaders = details.filter(d => d.type === 'section_header');
+            const portDetails = details.filter(d => d.type === 'port');
+            const functionDetails = details.filter(d => d.type === 'function');
+            const statusDetails = details.filter(d => d.type === 'status');
+            const specDetails = details.filter(d => d.type === 'spec');
+            const warningDetails = details.filter(d => d.type === 'warning');
+            const infoDetails = details.filter(d => d.type === 'info');
+            const errorDetails = details.filter(d => d.type === 'error');
+            
+            // Create badge classes for subcategories
+            const category = data.category || 'NETWORK';
+            const badgeClasses = category.toLowerCase().replace(/\s+/g, ' ').split(' ').join(' ');
+            
+            let html = `
+                <div class="server-detail-card">
+                    <div class="detail-type-badge ${badgeClasses}">${category}</div>
+                    <h4><i class="${icon}"></i> ${data.card_name}</h4>
+            `;
+            
+            if (details.length > 0) {
+                html += renderDetailSections(
+                    headerDetails, 
+                    summaryDetails, 
+                    sectionHeaders,
+                    portDetails, 
+                    functionDetails,
+                    statusDetails,
+                    specDetails, 
+                    warningDetails, 
+                    infoDetails,
+                    errorDetails
+                );
+            } else {
+                html += `
+                    <div class="error-message">
+                        <i class="fas fa-info-circle"></i> No detailed information available for this card
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+        
+        function renderDetailSections(
+            headerDetails, 
+            summaryDetails, 
+            sectionHeaders,
+            portDetails, 
+            functionDetails,
+            statusDetails,
+            specDetails,
+            warningDetails, 
+            infoDetails,
+            errorDetails
+        ) {
+            let html = '';
+            
+            // Error details (if any)
+            errorDetails.forEach(detail => {
+                html += `
+                    <div class="detail-property error-detail">
+                        <span class="property-name"><i class="fas fa-exclamation-circle" style="color: var(--error);"></i> ${detail.name}</span>
+                        <span class="property-value" style="color: var(--error);">${detail.value}</span>
+                    </div>
+                `;
+            });
+            
+            // Warning details (if any)
+            warningDetails.forEach(detail => {
+                html += `
+                    <div class="detail-property warning-detail">
+                        <span class="property-name"><i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i> ${detail.name}</span>
+                        <span class="property-value" style="color: var(--warning); font-style: italic;">${detail.value}</span>
+                    </div>
+                `;
+            });
+            
+            // Header details
+            headerDetails.forEach(detail => {
+                html += `
+                    <div class="detail-property header-detail">
+                        <span class="property-name"><i class="fas fa-tag"></i> ${detail.name}</span>
+                        <span class="property-value"><strong>${detail.value}</strong></span>
+                    </div>
+                `;
+            });
+            
+            // Status details
+            if (statusDetails.length > 0) {
+                html += `<div class="detail-section"><i class="fas fa-info-circle"></i> Status</div>`;
+                statusDetails.forEach(detail => {
+                    const isOk = detail.value.toLowerCase().includes('ok') || 
+                               detail.value.toLowerCase().includes('enabled') || 
+                               detail.value.toLowerCase().includes('healthy');
+                    const statusClass = isOk ? 'status-ok' : 'status-warning';
+                    const statusIcon = isOk ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+                    
+                    html += `
+                        <div class="detail-property status-detail">
+                            <span class="property-name"><i class="${statusIcon}"></i> ${detail.name}</span>
+                            <span class="property-value ${statusClass}">${detail.value}</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Spec details
+            if (specDetails.length > 0) {
+                html += `<div class="detail-section"><i class="fas fa-microchip"></i> Specifications</div>`;
+                specDetails.forEach(detail => {
+                    html += `
+                        <div class="detail-property spec-detail">
+                            <span class="property-name">${detail.name}</span>
+                            <span class="property-value">${detail.value}</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Info details (remaining details that aren't categorized)
+            if (infoDetails.length > 0) {
+                html += `<div class="detail-section"><i class="fas fa-info"></i> Additional Information</div>`;
+                infoDetails.forEach(detail => {
+                    html += `
+                        <div class="detail-property info-detail">
+                            <span class="property-name">${detail.name}</span>
+                            <span class="property-value">${detail.value}</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // PCIe Function details
+            if (functionDetails.length > 0) {
+                // Find the section header for functions if it exists
+                const functionHeader = sectionHeaders.find(h => h.name === 'PCIe Functions');
+                
+                html += `<div class="detail-section"><i class="fas fa-microchip"></i> ${functionHeader ? functionHeader.value : 'PCIe Functions'}</div>`;
+                functionDetails.forEach(detail => {
+                    // Parse function status for styling
+                    const isEnabled = detail.value.includes('Enabled') || detail.value.includes('OK');
+                    const statusClass = isEnabled ? 'function-enabled' : 'function-disabled';
+                    const statusIcon = isEnabled ? 'fas fa-check-circle' : 'fas fa-times-circle';
+                    
+                    html += `
+                        <div class="detail-property function-detail">
+                            <span class="property-name"><i class="${statusIcon}"></i> ${detail.name}</span>
+                            <span class="property-value function-status ${statusClass}">${detail.value}</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Port details
+            if (portDetails.length > 0) {
+                // Find the section header for ports if it exists
+                const portHeader = sectionHeaders.find(h => h.name === 'Ports');
+                
+                html += `<div class="detail-section"><i class="fas fa-ethernet"></i> ${portHeader ? portHeader.value : 'Ports'}</div>`;
+                portDetails.forEach(detail => {
+                    // Parse port status for styling
+                    const isConnected = detail.status === 'connected';
+                    const statusClass = isConnected ? 'port-connected' : 'port-disconnected';
+                    const statusIcon = isConnected ? 'fas fa-link' : 'fas fa-unlink';
+                    
+                    html += `
+                        <div class="detail-property port-detail">
+                            <span class="property-name"><i class="${statusIcon}"></i> ${detail.name}</span>
+                            <span class="property-value port-status ${statusClass}">${detail.value}</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            return html;
+        }
+    </script>
+</body>
+</html>

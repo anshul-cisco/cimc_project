@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Collect CIMC Data - Professional Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Modern Navy Blue & White Theme */
+        :root {
+            --primary-navy: #1e3a8a;
+            --secondary-navy: #3b82f6;
+            --light-navy: #60a5fa;
+            --dark-navy: #1e40af;
+            --accent-blue: #06b6d4;
+            --pure-white: #ffffff;
+            --light-gray: #f8fafc;
+            --medium-gray: #e2e8f0;
+            --dark-gray: #475569;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 50%, var(--light-navy) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: var(--pure-white);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--medium-gray);
+            text-align: center;
+        }
+        
+        h1 { 
+            color: var(--primary-navy);
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 50%, var(--light-navy) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        h1 i {
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        h2 {
+            color: var(--primary-navy);
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card {
+            background: var(--pure-white);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--medium-gray);
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 28px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--primary-navy);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        input[type="text"], input[type="password"], input[type="file"] {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid var(--medium-gray);
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: inherit;
+            background: var(--pure-white);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-primary);
+        }
+        
+        input[type="text"]:focus, input[type="password"]:focus, input[type="file"]:focus {
+            outline: none;
+            border-color: var(--secondary-navy);
+            background: var(--pure-white);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+            color: var(--pure-white);
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 160px;
+            justify-content: center;
+        }
+        
+        .button:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+            background: linear-gradient(135deg, var(--dark-navy) 0%, var(--primary-navy) 100%);
+        }
+        
+        .back-button {
+            background: linear-gradient(135deg, var(--dark-gray) 0%, var(--text-secondary) 100%);
+            box-shadow: var(--shadow-md);
+            margin-right: 20px;
+        }
+        
+        .back-button:hover {
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--dark-gray) 100%);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .status {
+            background: var(--pure-white);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow-xl);
+            border: 3px solid var(--accent-blue);
+            margin-top: 20px;
+            animation: fadeInUp 0.5s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .status::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--secondary-navy));
+        }
+        
+        .status.running {
+            border-color: #ffd93d;
+            background: linear-gradient(135deg, rgba(255, 248, 173, 0.95), rgba(255, 235, 59, 0.95));
+            color: #b8860b;
+        }
+        
+        .status.completed.success {
+            border-color: #6bcf7f;
+            background: linear-gradient(135deg, rgba(178, 245, 234, 0.95), rgba(129, 236, 236, 0.95));
+            color: #0f5132;
+        }
+        
+        .status.completed.partial {
+            border-color: #f59e0b;
+            background: linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(253, 230, 138, 0.95));
+            color: #92400e;
+        }
+        
+        .status.completed.failed {
+            border-color: #ef4444;
+            background: linear-gradient(135deg, rgba(254, 226, 226, 0.95), rgba(252, 165, 165, 0.95));
+            color: #991b1b;
+        }
+        
+        .status h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.4rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status h3 i {
+            font-size: 1.2rem;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .progress {
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(226, 232, 240, 0.8);
+            border-radius: 20px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            transition: width 0.3s ease;
+            border-radius: 20px;
+        }
+        
+        .error {
+            color: #dc2626;
+            background: rgba(220, 38, 38, 0.1);
+            border: 2px solid rgba(220, 38, 38, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            font-weight: 500;
+            font-size: 14px;
+            line-height: 1.5;
+            word-break: break-word;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .error strong {
+            color: #991b1b;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        
+        .method-separator {
+            text-align: center;
+            margin: 40px 0;
+            color: #718096;
+            font-weight: 600;
+            font-size: 18px;
+            position: relative;
+        }
+        
+        .method-separator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+        }
+        
+        .method-separator span {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        
+        .flash-message {
+            padding: 20px 24px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            font-size: 16px;
+            border: 2px solid;
+            backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideInDown 0.5s ease-out;
+            background: var(--pure-white);
+        }
+        
+        .flash-success {
+            color: var(--success);
+            border-color: var(--success);
+        }
+        
+        .flash-success::before {
+            content: "\f058"; /* FontAwesome check-circle */
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-size: 20px;
+            min-width: 20px;
+        }
+        
+        .flash-error {
+            color: var(--error);
+            border-color: var(--error);
+        }
+        
+        .flash-error::before {
+            content: "\f06a"; /* FontAwesome exclamation-triangle */
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-size: 20px;
+            min-width: 20px;
+        }
+        
+        .flash-warning {
+            color: var(--warning);
+            border-color: var(--warning);
+        }
+        
+        .flash-warning::before {
+            content: "\f071"; /* FontAwesome exclamation-triangle */
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-size: 20px;
+            min-width: 20px;
+        }
+        
+        @keyframes slideInDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header, .card {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+        }
+        
+        /* Loading animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        .error-details {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(220, 38, 38, 0.05) 100%);
+            border: 2px solid rgba(220, 38, 38, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 15px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);
+        }
+        
+        .error-details strong {
+            color: #991b1b;
+            display: block;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 8px 12px;
+            background: rgba(220, 38, 38, 0.1);
+            border-radius: 6px;
+            border-left: 4px solid #dc2626;
+        }
+        
+        .error-item {
+            margin: 12px 0;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            border-left: 3px solid #f59e0b;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .error-item:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateX(2px);
+            transition: all 0.2s ease;
+        }
+    </style>
+    <script>
+        // Auto-refresh status when collection is running
+        let statusUpdateTimer = null;
+        let isStatusUpdating = false;
+        
+        function updateStatus() {
+            // Prevent multiple simultaneous updates
+            if (isStatusUpdating) return;
+            isStatusUpdating = true;
+            
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusDiv = document.getElementById('collection-status');
+                    
+                    // Clear any existing timer
+                    if (statusUpdateTimer) {
+                        clearTimeout(statusUpdateTimer);
+                        statusUpdateTimer = null;
+                    }
+                    
+                    // Clear the status div completely first
+                    statusDiv.innerHTML = '';
+                    statusDiv.className = 'status';
+                    statusDiv.style.display = 'none';
+                    
+                    if (data.running) {
+                        const progress = data.total > 0 ? (data.completed / data.total) * 100 : 0;
+                        
+                        // Build counts display for running status
+                        let runningCounts = '';
+                        if (data.successful > 0 || data.failed > 0 || data.skipped > 0) {
+                            runningCounts = '<p>';
+                            if (data.successful > 0) {
+                                runningCounts += `<span style="color: var(--success);">Successful: ${data.successful}</span>`;
+                            }
+                            if (data.skipped > 0) {
+                                if (data.successful > 0) runningCounts += ' | ';
+                                runningCounts += `<span style="color: var(--accent-blue);">Skipped: ${data.skipped}</span>`;
+                            }
+                            if (data.failed > 0) {
+                                if (data.successful > 0 || data.skipped > 0) runningCounts += ' | ';
+                                runningCounts += `<span style="color: var(--error);">Failed: ${data.failed}</span>`;
+                            }
+                            runningCounts += '</p>';
+                        } else {
+                            runningCounts = `<p>Successful: ${data.successful || 0} | Failed: ${data.failed || 0}</p>`;
+                        }
+                        
+                        statusDiv.innerHTML = `
+                            <h3><i class="fas fa-spinner fa-spin"></i> Collection in Progress</h3>
+                            <div class="progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                            <p>Progress: ${data.completed}/${data.total} servers completed</p>
+                            ${runningCounts}
+                            <p>Current Server: ${data.current_server}</p>
+                            <p>Last Update: ${data.last_update}</p>
+                            ${data.errors.length > 0 ? '<div class="error-details"><strong>🔍 Issues & Setup Instructions:</strong><br>' + data.errors.map(error => `<div class="error-item">${error.replace(/→/g, '<br>&nbsp;&nbsp;&nbsp;&nbsp;→')}</div>`).join('<br>') + '</div>' : ''}
+                        `;
+                        statusDiv.className = 'status running';
+                        statusDiv.style.display = 'block';
+                        // Continue polling while running
+                        statusUpdateTimer = setTimeout(() => {
+                            isStatusUpdating = false;
+                            updateStatus();
+                        }, 2000);
+                    } else if (data.total > 0) {
+                        // Determine completion status and appropriate icon/styling
+                        let statusIcon = '';
+                        let statusClass = 'completed';
+                        let statusTitle = 'Collection Completed';
+                        
+                        if (data.status === 'completed_failed') {
+                            statusIcon = '<i class="fas fa-times-circle" style="color: var(--error);"></i>';
+                            statusClass = 'completed failed';
+                            statusTitle = 'Collection Failed';
+                        } else if (data.status === 'completed_skipped') {
+                            statusIcon = '<i class="fas fa-info-circle" style="color: var(--accent-blue);"></i>';
+                            statusClass = 'completed skipped';
+                            statusTitle = 'Servers Already in Inventory';
+                        } else if (data.status === 'completed_partial') {
+                            statusIcon = '<i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i>';
+                            statusClass = 'completed partial';
+                            statusTitle = 'Collection Completed with Issues';
+                        } else {
+                            statusIcon = '<i class="fas fa-check-circle" style="color: var(--success);"></i>';
+                            statusClass = 'completed success';
+                            statusTitle = 'Collection Completed Successfully';
+                        }
+                        
+                        // Show counts including skipped separately
+                        let countsHtml = '';
+                        if (data.successful > 0 || data.failed > 0 || data.skipped > 0) {
+                            countsHtml = '<p>';
+                            if (data.successful > 0) {
+                                countsHtml += `<span style="color: var(--success);">Successful: ${data.successful}</span>`;
+                            }
+                            if (data.skipped > 0) {
+                                if (data.successful > 0) countsHtml += ' | ';
+                                countsHtml += `<span style="color: var(--accent-blue);">Skipped: ${data.skipped}</span>`;
+                            }
+                            if (data.failed > 0) {
+                                if (data.successful > 0 || data.skipped > 0) countsHtml += ' | ';
+                                countsHtml += `<span style="color: var(--error);">Failed: ${data.failed}</span>`;
+                            }
+                            countsHtml += '</p>';
+                        } else {
+                            countsHtml = `<p><span style="color: var(--success);">Successful: ${data.successful || 0}</span> | <span style="color: var(--error);">Failed: ${data.failed || 0}</span></p>`;
+                        }
+                        
+                        statusDiv.innerHTML = `
+                            <h3>${statusIcon} ${statusTitle}</h3>
+                            <p>Completed: ${data.completed}/${data.total} servers</p>
+                            ${countsHtml}
+                            <p>Last Update: ${data.last_update}</p>
+                            <div style="margin-top: 15px;">
+                                <button onclick="clearStatus()" class="button" style="background: var(--dark-gray); padding: 8px 16px; font-size: 12px;">
+                                    <i class="fas fa-times"></i> Clear Status
+                                </button>
+                            </div>
+                            ${data.errors.length > 0 ? '<div class="error-details"><strong>📋 Detailed Results & Troubleshooting:</strong><br>' + data.errors.map(error => `<div class="error-item">${error.replace(/→/g, '<br>&nbsp;&nbsp;&nbsp;&nbsp;→')}</div>`).join('<br>') + '</div>' : ''}
+                        `;
+                        statusDiv.className = `status ${statusClass}`;
+                        statusDiv.style.display = 'block';
+                        isStatusUpdating = false;
+                    } else {
+                        // No status to show
+                        statusDiv.style.display = 'none';
+                        isStatusUpdating = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Status update error:', error);
+                    isStatusUpdating = false;
+                });
+        }
+        
+        function clearStatus() {
+            fetch('/clear-status')
+                .then(() => {
+                    const statusDiv = document.getElementById('collection-status');
+                    statusDiv.innerHTML = '';
+                    statusDiv.className = 'status';
+                    statusDiv.style.display = 'none';
+                })
+                .catch(console.error);
+        }
+
+        // Start status updates when page loads
+        let statusInitialized = false;
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!statusInitialized) {
+                statusInitialized = true;
+                updateStatus();
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-sync-alt"></i> Collect CIMC Server Data</h1>
+        </div>
+        
+        <!-- Flash messages -->
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- Collection Form -->
+        <div class="card">
+            <form method="POST" enctype="multipart/form-data">
+                <h2><i class="fas fa-server"></i> Single Server Collection</h2>
+                <div class="form-group">
+                    <label for="cimc_ip">CIMC IP Address</label>
+                    <input type="text" id="cimc_ip" name="cimc_ip" placeholder="e.g., server-system-v-cimc.cisco.com">
+                </div>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter password">
+                </div>
+
+                <div class="method-separator">
+                    <span>OR</span>
+                </div>
+
+                <!-- CSV File Upload -->
+                <h2><i class="fas fa-file-csv"></i> Bulk Collection from CSV</h2>
+                <div class="form-group">
+                    <label for="csv_file">Upload CSV File</label>
+                    <input type="file" id="csv_file" name="csv_file" accept=".csv">
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                        Required columns: CIMC_IP, USERNAME, PASSWORD
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <a href="/" class="button back-button">
+                        <i class="fas fa-arrow-left"></i> Back to Inventory
+                    </a>
+                    <button type="submit" class="button">
+                        <i class="fas fa-rocket"></i> Start Collection
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Collection Status -->
+        <div id="collection-status" class="status" style="display: none;">
+            <!-- Status will be updated by JavaScript -->
+        </div>
+    </div>
+</body>
+</html>
