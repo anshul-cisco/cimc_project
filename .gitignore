@@ -1,0 +1,20 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+
+# Logs
+*.log
+
+# Environment / config
+.env
+*.env
+
+# MacOS metadata
+.DS_Store
+
+# CSV or generated data files (optional, only if you don’t want to push them)
+# *.csv
