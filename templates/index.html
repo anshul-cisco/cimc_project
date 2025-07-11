@@ -756,13 +756,15 @@
             border-bottom: 1px solid var(--medium-gray);
         }
         
-        /* PCIe-specific badges */
+        /* Updated category-specific badges for 3-category system */
+        .detail-type-badge.pci.adapters { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .detail-type-badge.vic.adapter { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .detail-type-badge.network.adapter { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+        
+        /* Legacy badge styles for backward compatibility */
         .detail-type-badge.pcie { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-        .detail-type-badge.pcie.network { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
-        .detail-type-badge.pcie.storage { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-        .detail-type-badge.pcie.graphics { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-        .detail-type-badge.pcie.accelerator { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
-        .detail-type-badge.pcie.controller { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+        .detail-type-badge.vic { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .detail-type-badge.network { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
         
         /* Status styles */
         .function-enabled {
@@ -918,6 +920,173 @@
             color: var(--success);
             background: rgba(16, 185, 129, 0.1);
             border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        /* Enhanced card display styles */
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .card-header h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .card-header i {
+            font-size: 18px;
+            color: var(--accent);
+        }
+        
+        /* Clean detail property styles */
+        .detail-property {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 4px;
+        }
+        
+        .detail-property:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .property-name {
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 120px;
+        }
+        
+        .property-value {
+            color: var(--text-primary);
+            text-align: right;
+            flex: 1;
+        }
+        
+        /* Device header specific styles */
+        .device-header .property-name {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .device-name {
+            font-weight: 600;
+            color: var(--accent);
+        }
+        
+        /* Slot info styles */
+        .slot-detail {
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 6px;
+            padding: 10px;
+            margin: 8px 0;
+            border-left: 3px solid var(--accent);
+        }
+        
+        .slot-info {
+            font-weight: 600;
+            color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        /* Port summary styles */
+        .port-summary {
+            background: rgba(16, 185, 129, 0.05);
+            border-radius: 6px;
+            padding: 10px;
+            margin: 12px 0;
+            border-left: 3px solid var(--success);
+        }
+        
+        .summary-text {
+            font-weight: 600;
+            color: var(--success);
+        }
+        
+        /* Enhanced port container and items */
+        .ports-container {
+            display: grid;
+            gap: 8px;
+            margin: 12px 0;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+        
+        .port-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .port-item:hover {
+            border-color: var(--accent);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+        }
+        
+        .port-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        
+        .port-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        
+        .port-status {
+            font-size: 13px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .port-connected {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .port-disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        /* Error and info text styles */
+        .error-text {
+            color: var(--error);
+            font-weight: 500;
+        }
+        
+        .info-text {
+            color: var(--text-secondary);
+        }
+        
+        /* Info detail specific background */
+        .info-detail {
+            background: rgba(107, 114, 128, 0.05);
+            border-radius: 4px;
+            padding: 8px;
+            margin: 4px 0;
         }
     </style>
 </head>
@@ -1098,20 +1267,19 @@
 
     <script>
         const selectedCards = {}; // Track selected card for each server
-        // Icons for each card type
+        // Icons for each card type - Updated for 3-category system
         const cardIcons = {
+            'pci adapters': 'fas fa-microchip',
+            'vic adapter': 'fas fa-server',
+            'network adapter': 'fas fa-network-wired',
+            // Legacy mappings for backward compatibility
             'network': 'fas fa-network-wired',
             'nic': 'fas fa-ethernet',
             'ethernet': 'fas fa-ethernet',
             'mlom': 'fas fa-server',
-            'vic': 'fas fa-hdd',
+            'vic': 'fas fa-server',
             'ocp': 'fas fa-memory',
             'pcie': 'fas fa-microchip',
-            'pcie network': 'fas fa-ethernet',
-            'pcie storage': 'fas fa-database',
-            'pcie graphics': 'fas fa-tv',
-            'pcie accelerator': 'fas fa-bolt',
-            'pcie controller': 'fas fa-cogs',
             'unknown': 'fas fa-question-circle'
         };
         
@@ -1315,13 +1483,9 @@
             const details = data.details || [];
             
             const headerDetails = details.filter(d => d.type === 'header');
-            const summaryDetails = details.filter(d => d.type === 'summary');
-            const sectionHeaders = details.filter(d => d.type === 'section_header');
+            const slotDetails = details.filter(d => d.type === 'slot_info');
+            const portSummaryDetails = details.filter(d => d.type === 'port_summary');
             const portDetails = details.filter(d => d.type === 'port');
-            const functionDetails = details.filter(d => d.type === 'function');
-            const statusDetails = details.filter(d => d.type === 'status');
-            const specDetails = details.filter(d => d.type === 'spec');
-            const warningDetails = details.filter(d => d.type === 'warning');
             const infoDetails = details.filter(d => d.type === 'info');
             const errorDetails = details.filter(d => d.type === 'error');
             
@@ -1332,19 +1496,18 @@
             let html = `
                 <div class="server-detail-card">
                     <div class="detail-type-badge ${badgeClasses}">${category}</div>
-                    <h4><i class="${icon}"></i> ${data.card_name}</h4>
+                    <div class="card-header">
+                        <i class="${icon}"></i>
+                        <h4>${data.card_name}</h4>
+                    </div>
             `;
             
             if (details.length > 0) {
-                html += renderDetailSections(
+                html += renderCleanDetailSections(
                     headerDetails, 
-                    summaryDetails, 
-                    sectionHeaders,
+                    slotDetails,
+                    portSummaryDetails,
                     portDetails, 
-                    functionDetails,
-                    statusDetails,
-                    specDetails, 
-                    warningDetails, 
                     infoDetails,
                     errorDetails
                 );
@@ -1360,15 +1523,11 @@
             container.innerHTML = html;
         }
         
-        function renderDetailSections(
+        function renderCleanDetailSections(
             headerDetails, 
-            summaryDetails, 
-            sectionHeaders,
+            slotDetails,
+            portSummaryDetails,
             portDetails, 
-            functionDetails,
-            statusDetails,
-            specDetails,
-            warningDetails, 
             infoDetails,
             errorDetails
         ) {
@@ -1378,118 +1537,73 @@
             errorDetails.forEach(detail => {
                 html += `
                     <div class="detail-property error-detail">
-                        <span class="property-name"><i class="fas fa-exclamation-circle" style="color: var(--error);"></i> ${detail.name}</span>
-                        <span class="property-value" style="color: var(--error);">${detail.value}</span>
+                        <span class="property-name"><i class="fas fa-exclamation-circle"></i> ${detail.name}</span>
+                        <span class="property-value error-text">${detail.value}</span>
                     </div>
                 `;
             });
             
-            // Warning details (if any)
-            warningDetails.forEach(detail => {
-                html += `
-                    <div class="detail-property warning-detail">
-                        <span class="property-name"><i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i> ${detail.name}</span>
-                        <span class="property-value" style="color: var(--warning); font-style: italic;">${detail.value}</span>
-                    </div>
-                `;
-            });
-            
-            // Header details
+            // Header details (Device name)
             headerDetails.forEach(detail => {
                 html += `
-                    <div class="detail-property header-detail">
-                        <span class="property-name"><i class="fas fa-tag"></i> ${detail.name}</span>
-                        <span class="property-value"><strong>${detail.value}</strong></span>
+                    <div class="detail-property device-header">
+                        <span class="property-name"><i class="fas fa-microchip"></i> ${detail.name}</span>
+                        <span class="property-value device-name">${detail.value}</span>
                     </div>
                 `;
             });
             
-            // Status details
-            if (statusDetails.length > 0) {
-                html += `<div class="detail-section"><i class="fas fa-info-circle"></i> Status</div>`;
-                statusDetails.forEach(detail => {
-                    const isOk = detail.value.toLowerCase().includes('ok') || 
-                               detail.value.toLowerCase().includes('enabled') || 
-                               detail.value.toLowerCase().includes('healthy');
-                    const statusClass = isOk ? 'status-ok' : 'status-warning';
-                    const statusIcon = isOk ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
-                    
-                    html += `
-                        <div class="detail-property status-detail">
-                            <span class="property-name"><i class="${statusIcon}"></i> ${detail.name}</span>
-                            <span class="property-value ${statusClass}">${detail.value}</span>
-                        </div>
-                    `;
-                });
-            }
+            // Slot information
+            slotDetails.forEach(detail => {
+                html += `
+                    <div class="detail-property slot-detail">
+                        <span class="property-name"><i class="fas fa-map-pin"></i> ${detail.name}</span>
+                        <span class="property-value slot-info">${detail.value}</span>
+                    </div>
+                `;
+            });
             
-            // Spec details
-            if (specDetails.length > 0) {
-                html += `<div class="detail-section"><i class="fas fa-microchip"></i> Specifications</div>`;
-                specDetails.forEach(detail => {
-                    html += `
-                        <div class="detail-property spec-detail">
-                            <span class="property-name">${detail.name}</span>
-                            <span class="property-value">${detail.value}</span>
-                        </div>
-                    `;
-                });
-            }
+            // Port summary
+            portSummaryDetails.forEach(detail => {
+                html += `
+                    <div class="detail-property port-summary">
+                        <span class="property-name"><i class="fas fa-ethernet"></i> ${detail.name}</span>
+                        <span class="property-value summary-text">${detail.value}</span>
+                    </div>
+                `;
+            });
             
-            // Info details (remaining details that aren't categorized)
-            if (infoDetails.length > 0) {
-                html += `<div class="detail-section"><i class="fas fa-info"></i> Additional Information</div>`;
-                infoDetails.forEach(detail => {
-                    html += `
-                        <div class="detail-property info-detail">
-                            <span class="property-name">${detail.name}</span>
-                            <span class="property-value">${detail.value}</span>
-                        </div>
-                    `;
-                });
-            }
-            
-            // PCIe Function details
-            if (functionDetails.length > 0) {
-                // Find the section header for functions if it exists
-                const functionHeader = sectionHeaders.find(h => h.name === 'PCIe Functions');
-                
-                html += `<div class="detail-section"><i class="fas fa-microchip"></i> ${functionHeader ? functionHeader.value : 'PCIe Functions'}</div>`;
-                functionDetails.forEach(detail => {
-                    // Parse function status for styling
-                    const isEnabled = detail.value.includes('Enabled') || detail.value.includes('OK');
-                    const statusClass = isEnabled ? 'function-enabled' : 'function-disabled';
-                    const statusIcon = isEnabled ? 'fas fa-check-circle' : 'fas fa-times-circle';
-                    
-                    html += `
-                        <div class="detail-property function-detail">
-                            <span class="property-name"><i class="${statusIcon}"></i> ${detail.name}</span>
-                            <span class="property-value function-status ${statusClass}">${detail.value}</span>
-                        </div>
-                    `;
-                });
-            }
-            
-            // Port details
+            // Port details with color coding
             if (portDetails.length > 0) {
-                // Find the section header for ports if it exists
-                const portHeader = sectionHeaders.find(h => h.name === 'Ports');
-                
-                html += `<div class="detail-section"><i class="fas fa-ethernet"></i> ${portHeader ? portHeader.value : 'Ports'}</div>`;
+                html += `<div class="ports-container">`;
                 portDetails.forEach(detail => {
-                    // Parse port status for styling
                     const isConnected = detail.status === 'connected';
                     const statusClass = isConnected ? 'port-connected' : 'port-disconnected';
                     const statusIcon = isConnected ? 'fas fa-link' : 'fas fa-unlink';
+                    const statusColor = isConnected ? '#22c55e' : '#ef4444';
                     
                     html += `
-                        <div class="detail-property port-detail">
-                            <span class="property-name"><i class="${statusIcon}"></i> ${detail.name}</span>
-                            <span class="property-value port-status ${statusClass}">${detail.value}</span>
+                        <div class="port-item">
+                            <div class="port-header">
+                                <i class="${statusIcon}" style="color: ${statusColor};"></i>
+                                <span class="port-name">${detail.name}</span>
+                            </div>
+                            <div class="port-status ${statusClass}">${detail.value}</div>
                         </div>
                     `;
                 });
+                html += `</div>`;
             }
+            
+            // Info details
+            infoDetails.forEach(detail => {
+                html += `
+                    <div class="detail-property info-detail">
+                        <span class="property-name"><i class="fas fa-info-circle"></i> ${detail.name}</span>
+                        <span class="property-value info-text">${detail.value}</span>
+                    </div>
+                `;
+            });
             
             return html;
         }

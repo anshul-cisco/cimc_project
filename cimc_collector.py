@@ -322,10 +322,97 @@ def collect_data_for_server(cimc_ip, username, password):
         nic_details = []
         
         try:
-            # Method 1: Try NetworkInterfaces endpoint
-            network_endpoint = system_data.get('NetworkInterfaces', {}).get('@odata.id')
-            if network_endpoint:
+            # Method 1: Collect ALL PCIe devices first (including non-network for completeness)
+            pcie_devices = system_data.get('PCIeDevices', [])
+            collected_devices = []
+            
+            for pcie_device in pcie_devices:
                 try:
+                    pcie_response = session.get(f"https://{cimc_ip}{pcie_device['@odata.id']}", timeout=30)
+                    if pcie_response.status_code == 200:
+                        pcie_data = pcie_response.json()
+                        device_name = pcie_data.get('Name', 'Unknown Device')
+                        device_id = pcie_data.get('Id', '')
+                        firmware_version = pcie_data.get('FirmwareVersion', '')
+                        
+                        # Determine adapter type and slot info based on device ID and name
+                        adapter_type = "PCIe Device"
+                        slot_info = device_id
+                        
+                        if device_id.upper() == 'MLOM':
+                            adapter_type = "MLOM Adapter"
+                            slot_info = "MLOM"
+                        elif device_id.upper() == 'MRAID':
+                            adapter_type = "Storage Controller"
+                            slot_info = "MRAID"
+                        elif device_id.upper() == 'L':
+                            adapter_type = "LOM Adapter"
+                            slot_info = "L"
+                        elif device_id.isdigit():
+                            if any(keyword in device_name.lower() for keyword in ['network', 'ethernet', 'nic', 'intel', 'cisco']):
+                                adapter_type = "PCIe Network Adapter"
+                            slot_info = f"Slot {device_id}"
+                        
+                        # Enhanced device type detection - using exactly 3 categories
+                        if 'vic' in device_name.lower() or ('cisco' in device_name.lower() and 'vic' in device_name.lower()):
+                            adapter_type = "VIC Adapter"
+                        elif any(keyword in device_name.lower() for keyword in ['network', 'ethernet', 'nic', 'intel', 'broadcom', 'mellanox']) and 'vic' not in device_name.lower():
+                            adapter_type = "Network Adapter"
+                        else:
+                            # All other PCIe devices (storage, graphics, etc.)
+                            adapter_type = "PCI Adapters"
+                        
+                        # Get PCIe functions for port details
+                        port_details = []
+                        pcie_functions = pcie_data.get('Links', {}).get('PCIeFunctions', [])
+                        
+                        if pcie_functions:
+                            for func_ref in pcie_functions:
+                                try:
+                                    func_response = session.get(f"https://{cimc_ip}{func_ref['@odata.id']}", timeout=30)
+                                    if func_response.status_code == 200:
+                                        func_data = func_response.json()
+                                        
+                                        # Get ethernet interfaces from PCIe function
+                                        eth_interfaces = func_data.get('Links', {}).get('EthernetInterfaces', [])
+                                        for eth_ref in eth_interfaces:
+                                            try:
+                                                eth_response = session.get(f"https://{cimc_ip}{eth_ref['@odata.id']}", timeout=30)
+                                                if eth_response.status_code == 200:
+                                                    eth_data = eth_response.json()
+                                                    port_id = eth_data.get('Id', '')
+                                                    speed = eth_data.get('SpeedMbps', 0)
+                                                    link_status = eth_data.get('LinkStatus', 'Unknown')
+                                                    
+                                                    # Format port status
+                                                    status = "Connected" if link_status == "LinkUp" else "Disconnected"
+                                                    port_detail = f"Port {port_id}: {status}, {speed} Mbps"
+                                                    port_details.append(port_detail)
+                                            except:
+                                                pass
+                                except:
+                                    pass
+                        
+                        # Store device info
+                        device_info = {
+                            'adapter_type': adapter_type,
+                            'slot_info': slot_info,
+                            'device_name': device_name,
+                            'device_id': device_id,
+                            'firmware_version': firmware_version,
+                            'port_details': port_details,
+                            'is_network': any(keyword in device_name.lower() for keyword in ['network', 'ethernet', 'nic', 'vic', 'intel', 'cisco']) and 'raid' not in device_name.lower()
+                        }
+                        collected_devices.append(device_info)
+                        
+                except:
+                    pass
+            
+            # Method 2: Collect NetworkInterfaces (may provide additional port details)
+            network_interfaces = {}
+            try:
+                network_endpoint = system_data.get('NetworkInterfaces', {}).get('@odata.id')
+                if network_endpoint:
                     network_response = session.get(f"https://{cimc_ip}{network_endpoint}", timeout=30)
                     if network_response.status_code == 200:
                         network_data = network_response.json()
@@ -335,123 +422,88 @@ def collect_data_for_server(cimc_ip, username, password):
                                 nic_response = session.get(f"https://{cimc_ip}{nic_member['@odata.id']}", timeout=30)
                                 if nic_response.status_code == 200:
                                     nic_data = nic_response.json()
-                                    
-                                    # Get adapter name and details
-                                    adapter_name = nic_data.get('Name', 'Unknown NIC')
                                     adapter_id = nic_data.get('Id', '')
+                                    adapter_name = nic_data.get('Name', '')
                                     
-                                    # Try to get more detailed adapter info
+                                    # Try to get NetworkAdapter details
                                     adapter_link = nic_data.get('Links', {}).get('NetworkAdapter', {}).get('@odata.id')
                                     if adapter_link:
-                                        adapter_response = session.get(f"https://{cimc_ip}{adapter_link}", timeout=30)
-                                        if adapter_response.status_code == 200:
-                                            adapter_data = adapter_response.json()
-                                            model = adapter_data.get('Model', adapter_data.get('Name', adapter_name))
-                                            adapter_name = model
-                                            
-                                            # Get port information
-                                            port_details = []
-                                            ports_link = adapter_data.get('NetworkPorts', {}).get('@odata.id')
-                                            if ports_link:
-                                                ports_response = session.get(f"https://{cimc_ip}{ports_link}", timeout=30)
-                                                if ports_response.status_code == 200:
-                                                    ports_data = ports_response.json()
-                                                    for port_member in ports_data.get('Members', []):
-                                                        port_response = session.get(f"https://{cimc_ip}{port_member['@odata.id']}", timeout=30)
-                                                        if port_response.status_code == 200:
-                                                            port_data = port_response.json()
-                                                            port_id = port_data.get('Id', '')
-                                                            speed = port_data.get('CurrentLinkSpeedMbps', 0)
-                                                            link_status = port_data.get('LinkStatus', 'Unknown')
-                                                            
-                                                            status = "Connected" if link_status == "Up" else "Disconnected"
-                                                            port_detail = f"Port {port_id}: {status}, {speed} Mbps"
-                                                            port_details.append(port_detail)
-                                    
-                                    if port_details:
-                                        nic_detail = f"{adapter_name}: {' | '.join(port_details)}"
-                                    else:
-                                        nic_detail = f"{adapter_name}: No port details available"
-                                    
-                                    nic_details.append(nic_detail)
-                            except:
-                                pass
-                except:
-                    pass
-            
-            # Method 2: Try PCIeDevices endpoint for network cards
-            pcie_devices = system_data.get('PCIeDevices', [])
-            if pcie_devices:
-                try:
-                    for pcie_device in pcie_devices:
-                        try:
-                            pcie_response = session.get(f"https://{cimc_ip}{pcie_device['@odata.id']}", timeout=30)
-                            if pcie_response.status_code == 200:
-                                pcie_data = pcie_response.json()
-                                device_name = pcie_data.get('Name', '')
-                                device_id = pcie_data.get('Id', '')
-                                
-                                # Check if this is a network device
-                                if any(keyword in device_name.lower() for keyword in ['network', 'ethernet', 'nic', 'i350', 'x710', 'e810', 'vic', 'mlom']):
-                                    # Determine adapter type based on name and ID
-                                    adapter_type = "Network Adapter"
-                                    if 'mlom' in device_id.lower() or 'mlom' in device_name.lower():
-                                        adapter_type = "MLOM Adapter"
-                                    elif 'vic' in device_name.lower():
-                                        adapter_type = "VIC Adapter"
-                                    elif any(brand in device_name.lower() for brand in ['cisco', 'ucs']):
-                                        adapter_type = "UCS Network Adapter"
-                                    elif 'intel' in device_name.lower():
-                                        adapter_type = "Intel Network Adapter"
-                                    
-                                    # Get slot/ID info
-                                    slot_info = f"Slot {device_id}" if device_id else "Unknown Slot"
-                                    
-                                    # Try to get associated PCIeFunction for more details
-                                    pcie_functions = pcie_data.get('Links', {}).get('PCIeFunction', [])
-                                    port_details = []
-                                    
-                                    if pcie_functions:
-                                        for func in pcie_functions:
-                                            try:
-                                                func_response = session.get(f"https://{cimc_ip}{func['@odata.id']}", timeout=30)
-                                                if func_response.status_code == 200:
-                                                    func_data = func_response.json()
-                                                    # Try to get ethernet interface info
-                                                    eth_interfaces = func_data.get('Links', {}).get('EthernetInterfaces', [])
-                                                    if eth_interfaces:
-                                                        for eth_interface in eth_interfaces:
+                                        try:
+                                            adapter_response = session.get(f"https://{cimc_ip}{adapter_link}", timeout=30)
+                                            if adapter_response.status_code == 200:
+                                                adapter_data = adapter_response.json()
+                                                model = adapter_data.get('Model', adapter_data.get('Name', ''))
+                                                
+                                                # Get NetworkPorts for detailed port info
+                                                enhanced_ports = []
+                                                ports_link = adapter_data.get('NetworkPorts', {}).get('@odata.id')
+                                                if ports_link:
+                                                    ports_response = session.get(f"https://{cimc_ip}{ports_link}", timeout=30)
+                                                    if ports_response.status_code == 200:
+                                                        ports_data = ports_response.json()
+                                                        for port_member in ports_data.get('Members', []):
                                                             try:
-                                                                eth_response = session.get(f"https://{cimc_ip}{eth_interface['@odata.id']}", timeout=30)
-                                                                if eth_response.status_code == 200:
-                                                                    eth_data = eth_response.json()
-                                                                    port_id = eth_data.get('Id', '')
-                                                                    speed = eth_data.get('SpeedMbps', 0)
-                                                                    link_status = eth_data.get('LinkStatus', 'Unknown')
+                                                                port_response = session.get(f"https://{cimc_ip}{port_member['@odata.id']}", timeout=30)
+                                                                if port_response.status_code == 200:
+                                                                    port_data = port_response.json()
+                                                                    port_id = port_data.get('Id', '')
+                                                                    speed = port_data.get('CurrentLinkSpeedMbps', 0)
+                                                                    link_status = port_data.get('LinkStatus', 'Unknown')
                                                                     
-                                                                    status = "Connected" if link_status == "LinkUp" else "Disconnected"
-                                                                    port_detail = f"Port {port_id}: {status}, {speed} Mbps"
-                                                                    port_details.append(port_detail)
+                                                                    status = "Connected" if link_status == "Up" else "Disconnected"
+                                                                    enhanced_ports.append(f"Port {port_id}: {status}, {speed} Mbps")
                                                             except:
                                                                 pass
-                                            except:
-                                                pass
-                                    
-                                    # Format the adapter details
-                                    if port_details:
-                                        nic_detail = f"{adapter_type} ({slot_info}) - {device_name}: {' | '.join(port_details)}"
-                                    else:
-                                        nic_detail = f"{adapter_type} ({slot_info}) - {device_name}: No port details available"
-                                    
-                                    # Avoid duplicates
-                                    if not any(device_name in existing for existing in nic_details):
-                                        nic_details.append(nic_detail)
-                        except:
-                            pass
-                except:
-                    pass
+                                                
+                                                # Store enhanced network interface info
+                                                network_interfaces[adapter_id] = {
+                                                    'model': model,
+                                                    'name': adapter_name,
+                                                    'ports': enhanced_ports
+                                                }
+                                        except:
+                                            pass
+                            except:
+                                pass
+            except:
+                pass
             
-            # Method 3: Try EthernetInterfaces endpoint as fallback
+            # Method 3: Format all collected devices for display
+            for device in collected_devices:
+                # Skip non-network devices for the NIC details field
+                if not device['is_network']:
+                    continue
+                    
+                adapter_type = device['adapter_type']
+                slot_info = device['slot_info']
+                device_name = device['device_name']
+                port_details = device['port_details']
+                
+                # Try to enhance with NetworkInterface data if available
+                for ni_id, ni_data in network_interfaces.items():
+                    if device_name in ni_data['model'] or ni_data['model'] in device_name:
+                        if ni_data['ports']:
+                            port_details = ni_data['ports']
+                        break
+                
+                # Format the final device string with length limits for remote server compatibility
+                if port_details:
+                    # Limit port details to prevent oversized strings on remote servers
+                    limited_ports = port_details[:4]  # Limit to first 4 ports
+                    port_summary = ' | '.join(limited_ports)
+                    if len(port_details) > 4:
+                        port_summary += f" | +{len(port_details)-4} more ports"
+                    nic_detail = f"{adapter_type} (Slot {slot_info}) - {device_name}: {port_summary}"
+                else:
+                    nic_detail = f"{adapter_type} (Slot {slot_info}) - {device_name}: No port details available"
+                
+                # Ensure individual NIC detail doesn't exceed 500 characters
+                if len(nic_detail) > 500:
+                    nic_detail = nic_detail[:497] + "..."
+                
+                nic_details.append(nic_detail)
+            
+            # Method 4: Fallback - collect from EthernetInterfaces if no devices found
             if not nic_details:
                 try:
                     ethernet_endpoint = system_data.get('EthernetInterfaces', {}).get('@odata.id')
@@ -479,9 +531,22 @@ def collect_data_for_server(cimc_ip, username, password):
                 except:
                     pass
             
-            # Format final network string
+            # Format final network string with size limits for remote server compatibility
             if nic_details:
-                network_str = " || ".join(nic_details)
+                # Limit to maximum 8 network adapters to prevent oversized data
+                limited_nic_details = nic_details[:8]
+                if len(nic_details) > 8:
+                    limited_nic_details.append(f"... and {len(nic_details)-8} more network adapters")
+                
+                network_str = " || ".join(limited_nic_details)
+                
+                # Final safety check: if total string is too long, truncate further
+                if len(network_str) > 4000:  # 4KB limit for remote server compatibility
+                    # Take only first 3 adapters and add summary
+                    summary_details = nic_details[:3]
+                    total_adapters = len(nic_details)
+                    summary_details.append(f"... and {total_adapters-3} more adapters (data truncated for display)")
+                    network_str = " || ".join(summary_details)
             else:
                 network_str = "N/A"
                 

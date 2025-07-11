@@ -526,18 +526,51 @@ def delete_server(hostName):
 
 @app.template_filter('parse_nic')
 def parse_nic_details(nic_details):
-    """Parse NIC details and return structured data for dropdown with individual cards"""
+    """Parse NIC details and return structured data for dropdown with individual cards - enhanced for remote server compatibility"""
     if not nic_details or nic_details == 'N/A' or nic_details.strip() == '':
         return []
     
     cards = []
     try:
+        # Add size check for very large strings that might cause issues
+        if len(nic_details) > 20000:  # 20KB limit
+            logging.warning(f"Very large NIC details detected: {len(nic_details)} characters, truncating...")
+            nic_details = nic_details[:20000] + "... [Data truncated for processing]"
+        
         # Split by double pipes (||) to separate different network cards/adapters
         parts = nic_details.split('||') if '||' in nic_details else [nic_details]
         
+        # Limit number of parts to prevent overwhelming the UI
+        if len(parts) > 20:
+            logging.warning(f"Large number of network adapters detected: {len(parts)}, limiting to first 20")
+            parts = parts[:20]
+            parts.append(f"... and {len(nic_details.split('||')) - 20} more network adapters (truncated for display)")
+        
         for i, part in enumerate(parts):
             part = part.strip()
-            if part:
+            if not part:
+                continue
+                
+            # Skip truncation indicators
+            if "more network adapters" in part and "truncated" in part:
+                cards.append({
+                    'id': f"card_{i}",
+                    'name': part,
+                    'category': 'Info',
+                    'details': part,
+                    'original_name': 'Truncated Info',
+                    'clean_name': 'Additional Adapters',
+                    'port_count': 0,
+                    'connected_ports': 0,
+                    'card_type': 'Info',
+                    'specs': {},
+                    'max_speed': 0,
+                    'slot_info': '',
+                    'adapter_type': 'Info'
+                })
+                continue
+            
+            try:
                 # Check if this is the new enhanced format or the old format
                 card_name = ""
                 port_details = ""
@@ -586,61 +619,60 @@ def parse_nic_details(nic_details):
                         display_name = card_name
                         port_details = ""
                 
+                # Limit individual card name length
+                if len(card_name) > 100:
+                    card_name = card_name[:97] + "..."
+                if len(display_name) > 150:
+                    display_name = display_name[:147] + "..."
+                
                 # Get card specifications for enhanced naming
-                card_specs = extract_card_specifications(card_name)
+                try:
+                    card_specs = extract_card_specifications(card_name)
+                except Exception:
+                    card_specs = {}
                 
                 # Determine category based on adapter type or card name
                 category = 'Network'
                 card_name_upper = card_name.upper()
                 card_type = 'Network'
                 
-                # Enhanced categorization
-                if 'MLOM' in adapter_type.upper() or 'MLOM' in card_name_upper:
-                    category = 'MLOM'
-                    card_type = 'MLOM'
-                elif 'VIC' in adapter_type.upper() or 'VIC' in card_name_upper:
-                    category = 'VIC'
-                    card_type = 'VIC'
-                elif 'Intel' in adapter_type or 'Intel' in card_name:
-                    category = 'Intel Network'
-                    card_type = 'Intel Network'
-                elif 'UCS' in adapter_type.upper() or 'UCS' in card_name_upper:
-                    category = 'UCS Network'
-                    card_type = 'UCS Network'
-                elif 'PCIe' in adapter_type or 'PCIE' in adapter_type.upper():
-                    category = 'PCIe Network'
-                    card_type = 'PCIe Network'
-                elif 'OCP' in card_name_upper or 'OCP' in adapter_type.upper():
-                    category = 'OCP'
-                    card_type = 'OCP'
-                elif 'NIC' in card_name_upper or 'CISCO' in card_name_upper:
-                    category = 'NIC'
-                    card_type = 'NIC'
-                elif 'ETHERNET' in card_name_upper:
-                    category = 'Ethernet'
-                    card_type = 'Ethernet'
+                # Enhanced categorization - using exactly 3 categories
+                if 'VIC' in adapter_type.upper() or 'VIC' in card_name_upper or ('CISCO' in card_name_upper and 'VIC' in card_name_upper):
+                    category = 'VIC Adapter'
+                    card_type = 'VIC Adapter'
+                elif any(keyword in card_name_upper for keyword in ['NETWORK', 'ETHERNET', 'NIC', 'INTEL', 'BROADCOM', 'MELLANOX']) and 'VIC' not in card_name_upper:
+                    category = 'Network Adapter'
+                    card_type = 'Network Adapter'
+                else:
+                    # All other PCIe devices (storage, graphics, MLOM without VIC, etc.)
+                    category = 'PCI Adapters'
+                    card_type = 'PCI Adapters'
                 
-                # Extract port count and connection info
+                # Extract port count and connection info with error handling
                 port_count = 0
                 connected_ports = 0
                 max_speed = 0
                 
                 if port_details and port_details != "No port details available":
-                    # Count ports by looking for "Port" mentions
-                    port_entries = [p.strip() for p in port_details.split('|') if 'Port' in p]
-                    port_count = len(port_entries)
-                    
-                    # Count connected ports and find max speed
-                    for port_entry in port_entries:
-                        if 'Connected' in port_entry:
-                            connected_ports += 1
-                            # Extract speed
-                            speed_match = re.search(r'(\d+)\s*(Mbps|Gbps)', port_entry)
-                            if speed_match:
-                                speed_num = int(speed_match.group(1))
-                                if speed_match.group(2) == 'Gbps':
-                                    speed_num *= 1000
-                                max_speed = max(max_speed, speed_num)
+                    try:
+                        # Count ports by looking for "Port" mentions
+                        port_entries = [p.strip() for p in port_details.split('|') if 'Port' in p]
+                        port_count = len(port_entries)
+                        
+                        # Count connected ports and find max speed
+                        for port_entry in port_entries:
+                            if 'Connected' in port_entry:
+                                connected_ports += 1
+                                # Extract speed
+                                speed_match = re.search(r'(\d+)\s*(Mbps|Gbps)', port_entry)
+                                if speed_match:
+                                    speed_num = int(speed_match.group(1))
+                                    if speed_match.group(2) == 'Gbps':
+                                        speed_num *= 1000
+                                    max_speed = max(max_speed, speed_num)
+                    except Exception:
+                        # If port parsing fails, continue with defaults
+                        pass
                 
                 # Add port status info to display name
                 status_info = []
@@ -657,13 +689,23 @@ def parse_nic_details(nic_details):
                 
                 final_display_name = display_name
                 if status_info:
-                    final_display_name += f" [{', '.join(status_info)}]"
+                    status_suffix = f" [{', '.join(status_info)}]"
+                    # Ensure final name doesn't exceed reasonable length
+                    if len(final_display_name + status_suffix) > 200:
+                        final_display_name = final_display_name[:200-len(status_suffix)-3] + "..." + status_suffix
+                    else:
+                        final_display_name += status_suffix
+                
+                # Limit the details field to prevent oversized data
+                card_details = part.strip()
+                if len(card_details) > 1000:
+                    card_details = card_details[:997] + "..."
                 
                 cards.append({
                     'id': f"card_{i}",
                     'name': final_display_name,
                     'category': category,
-                    'details': part.strip(),  # Store the full card details for this specific card
+                    'details': card_details,
                     'original_name': card_name,
                     'clean_name': card_name,  # Store clean card name for header display
                     'port_count': port_count,
@@ -675,14 +717,34 @@ def parse_nic_details(nic_details):
                     'adapter_type': adapter_type
                 })
                 
+            except Exception as card_error:
+                logging.warning(f"Error parsing individual network card {i}: {str(card_error)}")
+                # Add a fallback card for this entry
+                cards.append({
+                    'id': f"card_{i}",
+                    'name': f"Network Card {i+1} (Parse Error)",
+                    'category': 'Network',
+                    'details': part.strip()[:500] + ('...' if len(part.strip()) > 500 else ''),
+                    'original_name': f'Network Card {i+1}',
+                    'clean_name': f'Network Card {i+1}',
+                    'port_count': 0,
+                    'connected_ports': 0,
+                    'card_type': 'Network',
+                    'specs': {},
+                    'max_speed': 0,
+                    'slot_info': '',
+                    'adapter_type': 'Network'
+                })
+                
     except Exception as e:
         logging.error(f"Error parsing NIC details: {str(e)}")
-        # Fallback: create a single card with all details
+        # Fallback: create a single card with truncated details
+        truncated_details = nic_details[:1000] + ('...' if len(nic_details) > 1000 else '')
         cards = [{
             'id': 'card_0',
-            'name': 'Network Details',
+            'name': 'Network Details (Parsing Error)',
             'category': 'Network',
-            'details': nic_details,
+            'details': truncated_details,
             'original_name': 'Network Details',
             'clean_name': 'Network Details',
             'port_count': 0,
@@ -698,7 +760,7 @@ def parse_nic_details(nic_details):
 
 @app.route('/api/server-details')
 def get_server_details():
-    """API endpoint to get server details for dynamic dropdown"""
+    """API endpoint to get server details for dynamic dropdown - enhanced for remote server compatibility"""
     try:
         hostname = request.args.get('hostname', '').strip()
         host_url = request.args.get('host_url', '').strip()
@@ -723,38 +785,110 @@ def get_server_details():
             logging.warning(f"Server details requested for non-existent server. hostname: {hostname}, host_url: {host_url}")
             return jsonify({'error': 'Server not found'}), 404
         
-        # Parse NIC details to get all available cards
-        all_cards = parse_nic_details(server.get('NIC Details', ''))
+        # Enhanced error handling for NIC details parsing
+        try:
+            # Parse NIC details to get all available cards
+            nic_details_raw = server.get('NIC Details', '')
+            
+            # Check if NIC details are valid
+            if not nic_details_raw or nic_details_raw.strip() == '' or nic_details_raw == 'N/A':
+                return jsonify({
+                    'cards': [],
+                    'selected_card': None,
+                    'card_name': 'No Network Cards Available',
+                    'details': [],
+                    'category': 'Unknown',
+                    'error': 'No network card data available for this server'
+                })
+            
+            # Add size check for large NIC details that might cause issues on remote servers
+            if len(nic_details_raw) > 10000:  # 10KB limit
+                logging.warning(f"Large NIC details data detected for {hostname}: {len(nic_details_raw)} characters")
+                # Truncate the data and add a warning
+                nic_details_raw = nic_details_raw[:10000] + "... [Data truncated due to size]"
+            
+            all_cards = parse_nic_details(nic_details_raw)
+            
+            # If parsing failed or returned empty, provide fallback
+            if not all_cards:
+                return jsonify({
+                    'cards': [{
+                        'id': 'fallback_card',
+                        'name': 'Network Card Details (Raw)',
+                        'category': 'Network',
+                        'details': nic_details_raw[:500] + ('...' if len(nic_details_raw) > 500 else ''),
+                        'original_name': 'Network Details',
+                        'clean_name': 'Network Details',
+                        'port_count': 0,
+                        'connected_ports': 0,
+                        'card_type': 'Network',
+                        'specs': {},
+                        'max_speed': 0,
+                        'slot_info': '',
+                        'adapter_type': 'Network'
+                    }],
+                    'selected_card': None,
+                    'card_name': 'Network Details',
+                    'details': [{'label': 'Raw Data', 'value': nic_details_raw[:500] + ('...' if len(nic_details_raw) > 500 else '')}],
+                    'category': 'Network',
+                    'warning': 'Unable to parse network card details, showing raw data'
+                })
+            
+        except Exception as parse_error:
+            logging.error(f"Error parsing NIC details for {hostname}: {str(parse_error)}")
+            return jsonify({
+                'cards': [],
+                'selected_card': None,
+                'card_name': 'Network Card Parsing Error',
+                'details': [],
+                'category': 'Unknown',
+                'error': f'Error parsing network card data: {str(parse_error)}'
+            }), 500
         
         # If card_id is specified, return details for that card
         if card_id:
             selected_card = next((card for card in all_cards if card['id'] == card_id), None)
             if selected_card:
-                # Parse the card details into structured format
-                parsed_details = parse_card_details(selected_card['details'])
-                
-                return jsonify({
-                    'cards': all_cards,
-                    'selected_card': selected_card,
-                    'card_name': selected_card.get('clean_name', selected_card['original_name']),
-                    'details': parsed_details,
-                    'category': selected_card['category']
-                })
+                try:
+                    # Parse the card details into structured format
+                    parsed_details = parse_card_details(selected_card['details'])
+                    
+                    return jsonify({
+                        'cards': all_cards,
+                        'selected_card': selected_card,
+                        'card_name': selected_card.get('clean_name', selected_card['original_name']),
+                        'details': parsed_details,
+                        'category': selected_card['category']
+                    })
+                except Exception as detail_error:
+                    logging.error(f"Error parsing card details for {card_id}: {str(detail_error)}")
+                    return jsonify({'error': f'Error parsing details for card {card_id}'}), 500
             else:
                 return jsonify({'error': f'Card with ID {card_id} not found'}), 404
         
         # Return all cards with first one selected by default
         default_card = all_cards[0] if all_cards else None
         if default_card:
-            parsed_details = parse_card_details(default_card['details'])
-            
-            return jsonify({
-                'cards': all_cards,
-                'selected_card': default_card,
-                'card_name': default_card.get('clean_name', default_card['original_name']),
-                'details': parsed_details,
-                'category': default_card['category']
-            })
+            try:
+                parsed_details = parse_card_details(default_card['details'])
+                
+                return jsonify({
+                    'cards': all_cards,
+                    'selected_card': default_card,
+                    'card_name': default_card.get('clean_name', default_card['original_name']),
+                    'details': parsed_details,
+                    'category': default_card['category']
+                })
+            except Exception as default_error:
+                logging.error(f"Error parsing default card details: {str(default_error)}")
+                return jsonify({
+                    'cards': all_cards,
+                    'selected_card': default_card,
+                    'card_name': default_card.get('clean_name', default_card['original_name']),
+                    'details': [],
+                    'category': default_card['category'],
+                    'error': 'Error parsing card details'
+                })
         else:
             return jsonify({
                 'cards': [],
@@ -769,216 +903,142 @@ def get_server_details():
         return jsonify({'error': 'Internal server error'}), 500
 
 def parse_card_details(details_string):
-    """Parse a card details string into structured format with enhanced information"""
+    """Parse a card details string into structured format with clean, focused information"""
     if not details_string or details_string.strip() == '':
         return []
     
     parsed_details = []
     try:
-        # First, extract the card name (everything before the first colon)
+        # Extract card name and port details
         card_name = ""
         port_details_raw = details_string
+        slot_info = ""
         
+        # Parse the enhanced format: "Adapter Type (Slot X) - Card Name: Port details"
         if ':' in details_string:
             parts = details_string.split(':', 1)
-            card_name = parts[0].strip()
+            card_name_part = parts[0].strip()
             port_details_raw = parts[1].strip()
             
-            # Enhanced card name parsing with manufacturer and model details
-            card_info = extract_card_specifications(card_name)
-            
-            # Determine if this is a PCIe device
-            is_pcie_device = 'PCIe' in card_name or 'pcie' in card_name.lower() or '(PCIe' in card_name
-            pcie_category = None
-            
-            if '(' in card_name and ')' in card_name:
-                # Extract category from parentheses if available
-                pcie_category_match = re.search(r'\((PCIe[^)]+)\)', card_name)
-                if pcie_category_match:
-                    pcie_category = pcie_category_match.group(1)
-            
-            # Extract key device information and clean up the display name
-            # Remove category from name for cleaner display
-            clean_name = card_name
-            if pcie_category:
-                clean_name = re.sub(r'\s*\(' + re.escape(pcie_category) + r'\)\s*', '', clean_name)
-            
-            # Add card information as the first detail
-            parsed_details.append({
-                'name': 'Card Model',
-                'value': clean_name,
-                'type': 'header'
-            })
-            
-            # Add manufacturer if detected
-            if card_info.get('manufacturer'):
-                parsed_details.append({
-                    'name': 'Manufacturer',
-                    'value': card_info['manufacturer'],
-                    'type': 'info'
-                })
-            
-            # For PCIe devices, add category information
-            if pcie_category:
-                parsed_details.append({
-                    'name': 'Device Type',
-                    'value': pcie_category,
-                    'type': 'info'
-                })
-            
-            # Add interface type if detected
-            if card_info.get('interface_type'):
-                parsed_details.append({
-                    'name': 'Interface Type',
-                    'value': card_info['interface_type'],
-                    'type': 'info'
-                })
-            
-            # Add form factor if detected
-            if card_info.get('form_factor'):
-                parsed_details.append({
-                    'name': 'Form Factor',
-                    'value': card_info['form_factor'],
-                    'type': 'info'
-                })
-            
-            # Add speed capability if detected
-            if card_info.get('speed_capability'):
-                parsed_details.append({
-                    'name': 'Speed Capability',
-                    'value': card_info['speed_capability'],
-                    'type': 'info'
-                })
-            
-            # Check for slot information
-            slot_match = re.search(r'\[Slot:\s*([^\]]+)\]', details_string)
+            # Extract slot information from the card name part
+            slot_match = re.search(r'\(Slot\s+([^)]+)\)', card_name_part)
             if slot_match:
+                slot_info = slot_match.group(1)
+                # Remove slot info from card name for cleaner display
+                card_name = re.sub(r'\s*\(Slot\s+[^)]+\)\s*', '', card_name_part)
+                # Also remove adapter type prefix if present
+                if ' - ' in card_name:
+                    card_name = card_name.split(' - ', 1)[1]
+            else:
+                card_name = card_name_part
+                # Check if it's in format "Adapter Type - Card Name"
+                if ' - ' in card_name:
+                    parts = card_name.split(' - ', 1)
+                    if len(parts) == 2:
+                        card_name = parts[1]
+        else:
+            # No colon, treat as card name only
+            card_name = details_string.strip()
+        
+        # Add card model as header
+        parsed_details.append({
+            'name': 'Device',
+            'value': card_name,
+            'type': 'header'
+        })
+        
+        # Add slot information if available
+        if slot_info:
+            parsed_details.append({
+                'name': 'Slot',
+                'value': slot_info,
+                'type': 'slot_info'
+            })
+        
+        # Parse port details
+        if port_details_raw and port_details_raw != "No port details available":
+            # Split by pipe (|) to get individual ports
+            port_parts = port_details_raw.split('|') if '|' in port_details_raw else [port_details_raw]
+            
+            port_details = []
+            connected_count = 0
+            total_ports = 0
+            
+            for part in port_parts:
+                part = part.strip()
+                if part and ':' in part:
+                    # Extract port information
+                    key_value = part.split(':', 1)
+                    if len(key_value) == 2:
+                        port_name = key_value[0].strip()
+                        port_status = key_value[1].strip()
+                        
+                        # Only process actual port entries
+                        if port_name.startswith('Port '):
+                            total_ports += 1
+                            
+                            # Parse connection status and speed
+                            connection_status = 'Unknown'
+                            speed_info = ''
+                            
+                            if 'Connected' in port_status or 'Disconnected' in port_status:
+                                connection_status = 'Connected' if 'Connected' in port_status else 'Disconnected'
+                                
+                                if connection_status == 'Connected':
+                                    connected_count += 1
+                                
+                                # Extract speed information
+                                speed_match = re.search(r'(\d+)\s*(Mbps|Gbps)', port_status)
+                                if speed_match:
+                                    speed_num = int(speed_match.group(1))
+                                    speed_unit = speed_match.group(2)
+                                    
+                                    # Format speed display
+                                    if speed_unit == 'Gbps' or (speed_unit == 'Mbps' and speed_num >= 1000):
+                                        if speed_unit == 'Mbps':
+                                            speed_num = speed_num // 1000
+                                        speed_info = f" @ {speed_num} Gbps"
+                                    else:
+                                        speed_info = f" @ {speed_num} Mbps"
+                            
+                            # Create clean port display
+                            port_value = connection_status
+                            if speed_info:
+                                port_value += speed_info
+                            
+                            port_details.append({
+                                'name': port_name,
+                                'value': port_value,
+                                'type': 'port',
+                                'status': connection_status.lower()
+                            })
+            
+            # Add port summary
+            if total_ports > 0:
+                summary_text = f"{total_ports} port{'s' if total_ports > 1 else ''}"
+                if connected_count > 0:
+                    summary_text += f", {connected_count} connected"
+                else:
+                    summary_text += ", none connected"
+                
                 parsed_details.append({
-                    'name': 'Slot',
-                    'value': slot_match.group(1),
-                    'type': 'info'
+                    'name': 'Port Summary',
+                    'value': summary_text,
+                    'type': 'port_summary'
                 })
-        
-        # Split by pipe (|) to get individual port details - but only for this specific card
-        port_parts = port_details_raw.split('|') if '|' in port_details_raw else [port_details_raw]
-        
-        port_count = 0
-        connected_ports = 0
-        total_speed = 0
-        port_details = []
-        function_details = []
-        
-        for part in port_parts:
-            part = part.strip()
-            if part and ':' in part:
-                # Extract key-value pairs
-                key_value = part.split(':', 1)
-                if len(key_value) == 2:
-                    name = key_value[0].strip()
-                    value = key_value[1].strip()
-                    
-                    # Clean up and enhance the name
-                    if name.startswith('Port '):
-                        port_count += 1
-                        port_name = name.replace('Port ', 'Port ')
-                        
-                        # Parse connection status and speed
-                        connection_status = 'Unknown'
-                        speed_info = 'Unknown'
-                        speed_value = 0
-                        
-                        if 'Connected' in value or 'Disconnected' in value:
-                            connection_status = 'Connected' if 'Connected' in value else 'Disconnected'
-                            
-                            if connection_status == 'Connected':
-                                connected_ports += 1
-                            
-                            # Extract speed information
-                            speed_match = re.search(r'(\d+)\s*(Mbps|Gbps)', value)
-                            if speed_match:
-                                speed_num = int(speed_match.group(1))
-                                speed_unit = speed_match.group(2)
-                                
-                                # Convert to Mbps for calculation
-                                if speed_unit == 'Gbps':
-                                    speed_value = speed_num * 1000
-                                else:
-                                    speed_value = speed_num
-                                
-                                total_speed += speed_value
-                                
-                                # Format speed display
-                                if speed_value >= 1000:
-                                    speed_info = f"{speed_value // 1000} Gbps"
-                                else:
-                                    speed_info = f"{speed_value} Mbps"
-                            
-                            # Create enhanced value display
-                            enhanced_value = f"{connection_status}"
-                            if speed_info != 'Unknown':
-                                enhanced_value += f", {speed_info}"
-                        else:
-                            enhanced_value = value
-                        
-                        port_details.append({
-                            'name': port_name,
-                            'value': enhanced_value,
-                            'type': 'port',
-                            'status': connection_status.lower(),
-                            'speed': speed_value
-                        })
-                    elif name.startswith('Fn') or name.startswith('Function'):
-                        # PCIe function details
-                        function_name = name.replace('Function ', 'Function ')
-                        
-                        # Enhanced status display for PCIe functions
-                        is_enabled = 'Enabled' in value or 'OK' in value
-                        status_display = 'Enabled' if is_enabled else 'Disabled'
-                        
-                        function_details.append({
-                            'name': function_name,
-                            'value': value,
-                            'type': 'function',
-                            'status': status_display.lower()
-                        })
-                    else:
-                        # Other types of details
-                        detail_type = 'info'
-                        
-                        # Categorize additional details for better display
-                        if name.lower() in ['status', 'health', 'state']:
-                            detail_type = 'status'
-                        elif name.lower() in ['model', 'type', 'class', 'device type', 'revision']:
-                            detail_type = 'spec'
-                        
-                        parsed_details.append({
-                            'name': name,
-                            'value': value,
-                            'type': detail_type
-                        })
-        
-        # Add PCIe function details first (if any)
-        if function_details:
-            # Add a section header for PCIe functions
+                
+                # Add individual port details
+                parsed_details.extend(port_details)
+        else:
+            # No port details available
             parsed_details.append({
-                'name': 'PCIe Functions',
-                'value': f"{len(function_details)} function(s)",
-                'type': 'section_header'
+                'name': 'Port Information',
+                'value': 'No port details available',
+                'type': 'info'
             })
-            parsed_details.extend(function_details)
         
-        # Add all port details after function details
-        if port_details:
-            # Add a section header for ports if there are ports
-            parsed_details.append({
-                'name': 'Ports',
-                'value': f"{port_count} port(s), {connected_ports} connected",
-                'type': 'section_header'
-            })
-            parsed_details.extend(port_details)
-        
-        # If no structured details found, add the whole string as a single detail
-        if not parsed_details:
+        # If no structured details found, add the whole string as description
+        if len(parsed_details) <= 2:  # Only header and slot info
             parsed_details.append({
                 'name': 'Description',
                 'value': details_string,
@@ -987,11 +1047,15 @@ def parse_card_details(details_string):
             
     except Exception as e:
         logging.error(f"Error parsing card details: {str(e)}")
-        # Return an error message in the details
+        # Return minimal error info
         parsed_details = [{
-            'name': 'Error',
-            'value': f"Could not parse details: {str(e)}",
+            'name': 'Device',
+            'value': 'Parse Error',
             'type': 'error'
+        }, {
+            'name': 'Raw Data',
+            'value': details_string,
+            'type': 'info'
         }]
     
     return parsed_details
